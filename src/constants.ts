@@ -31,38 +31,63 @@ export const SYMBOL_SEARCH_IGNORE_PATTERNS = [
 ];
 
 /**
+ * Supported languages enum for strict typing
+ */
+export enum SupportedLanguage {
+  TypeScript = 'typescript',
+  JavaScript = 'javascript',
+  Python = 'python',
+  PHP = 'php',
+  Go = 'go',
+  Rust = 'rust',
+  Java = 'java',
+  CSharp = 'csharp',
+  Ruby = 'ruby',
+  Vue = 'vue',
+  Svelte = 'svelte',
+  CSS = 'css',
+  SCSS = 'scss',
+  LESS = 'less',
+  HTML = 'html',
+  JSON = 'json',
+  YAML = 'yaml',
+  Markdown = 'markdown',
+  SQL = 'sql'
+}
+
+/**
  * Language extensions mapping
  */
-export const LANGUAGE_EXTENSIONS: Record<string, string[]> = {
-  typescript: ['.ts', '.tsx'],
-  javascript: ['.js', '.jsx', '.mjs', '.cjs'],
-  python: ['.py'],
-  php: ['.php'],
-  go: ['.go'],
-  rust: ['.rs'],
-  java: ['.java'],
-  csharp: ['.cs'],
-  ruby: ['.rb'],
-  vue: ['.vue'],
-  svelte: ['.svelte'],
-  css: ['.css'],
-  scss: ['.scss'],
-  less: ['.less'],
-  html: ['.html'],
-  json: ['.json'],
-  yaml: ['.yaml', '.yml'],
-  markdown: ['.md'],
-  sql: ['.sql'],
+export const LANGUAGE_EXTENSIONS: Record<SupportedLanguage, string[]> = {
+  [SupportedLanguage.TypeScript]: ['.ts', '.tsx'],
+  [SupportedLanguage.JavaScript]: ['.js', '.jsx', '.mjs', '.cjs'],
+  [SupportedLanguage.Python]: ['.py'],
+  [SupportedLanguage.PHP]: ['.php'],
+  [SupportedLanguage.Go]: ['.go'],
+  [SupportedLanguage.Rust]: ['.rs'],
+  [SupportedLanguage.Java]: ['.java'],
+  [SupportedLanguage.CSharp]: ['.cs'],
+  [SupportedLanguage.Ruby]: ['.rb'],
+  [SupportedLanguage.Vue]: ['.vue'],
+  [SupportedLanguage.Svelte]: ['.svelte'],
+  [SupportedLanguage.CSS]: ['.css'],
+  [SupportedLanguage.SCSS]: ['.scss'],
+  [SupportedLanguage.LESS]: ['.less'],
+  [SupportedLanguage.HTML]: ['.html'],
+  [SupportedLanguage.JSON]: ['.json'],
+  [SupportedLanguage.YAML]: ['.yaml', '.yml'],
+  [SupportedLanguage.Markdown]: ['.md'],
+  [SupportedLanguage.SQL]: ['.sql'],
 };
 
 /**
  * Get language name from file extension
  */
-export function getLanguageFromExtension(ext: string): string | undefined {
+export function getLanguageFromExtension(ext: string): SupportedLanguage | undefined {
   const normalizedExt = ext.toLowerCase();
   for (const [lang, extensions] of Object.entries(LANGUAGE_EXTENSIONS)) {
     if (extensions.includes(normalizedExt)) {
-      return lang;
+      return lang as SupportedLanguage;
     }
   }
   return undefined;

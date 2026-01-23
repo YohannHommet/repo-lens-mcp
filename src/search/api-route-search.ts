@@ -5,7 +5,7 @@ import { readFile } from 'fs/promises';
 import type { Repository } from '../types/repository.js';
 import type { APIRoute, APIRouteSearchOptions } from '../types/symbols.js';
 import { getRelativePath } from '../utils/path-utils.js';
-import { getLanguageFromExtension } from '../constants.js';
+import { getLanguageFromExtension, SupportedLanguage } from '../constants.js';
 import { logger } from '../utils/logger.js';
 
 const API_ROUTE_IGNORE_PATTERNS = [
@@ -49,8 +49,8 @@ export class APIRouteSearchEngine {
     ): Promise<APIRoute[]> {
         const results: APIRoute[] = [];
 
-        // Search for JavaScript/TypeScript files
-        const globPatterns = ['**/*.{ts,js,mjs,cjs}'];
+        // Search for JavaScript/TypeScript and PHP files
+        const globPatterns = ['**/*.{ts,js,mjs,cjs,php}'];
 
         const files = await fg(globPatterns, {
             cwd: repo.path,
@@ -81,24 +81,140 @@ export class APIRouteSearchEngine {
             const ext = filePath.substring(filePath.lastIndexOf('.'));
             const language = getLanguageFromExtension(ext);
 
-            if (!language || !['javascript', 'typescript'].includes(language)) {
+            if (!language || ![SupportedLanguage.JavaScript, SupportedLanguage.TypeScript, SupportedLanguage.PHP].includes(language)) {
                 return routes;
             }
 
-            const root = parse(language, content);
+            // Adjust language key for ast-grep if needed (ast-grep usually expects 'php')
+            const langKey = (language === SupportedLanguage.JavaScript || language === SupportedLanguage.TypeScript) ? language : SupportedLanguage.PHP;
+
+            let root;
+            try {
+                root = parse(langKey as any, content);
+            } catch (e) {
+                // Should only happen if language not supported by current ast-grep build
+                return routes;
+            }
+
             const rootNode = root.root();
 
-            // Express routes: app.get(), router.post(), etc.
-            routes.push(...this.findExpressRoutes(rootNode, filePath, repo, options));
+            if (langKey === SupportedLanguage.PHP) {
+                routes.push(...this.findLaravelRoutes(rootNode, filePath, repo, options));
+            } else {
+                // Express routes: app.get(), router.post(), etc.
+                routes.push(...this.findExpressRoutes(rootNode, filePath, repo, options));
 
-            // Fastify routes: fastify.get(), app.route()
-            routes.push(...this.findFastifyRoutes(rootNode, filePath, repo, options));
+                // Fastify routes: fastify.get(), app.route()
+                routes.push(...this.findFastifyRoutes(rootNode, filePath, repo, options));
 
-            // NestJS decorators: @Get(), @Post(), etc.
-            routes.push(...this.findNestJSRoutes(rootNode, content, filePath, repo, options));
+                // NestJS decorators: @Get(), @Post(), etc.
+                routes.push(...this.findNestJSRoutes(rootNode, content, filePath, repo, options));
+            }
 
         } catch (error) {
             logger.debug('Error parsing file for API routes', { filePath, error });
+        }
+
+        return routes;
+    }
+
+    /**
+     * Find Laravel (PHP) routes: Route::get('/path', ...)
+     */
+    private findLaravelRoutes(
+        root: SgNode,
+        filePath: string,
+        repo: Repository,
+        options: APIRouteSearchOptions
+    ): APIRoute[] {
+        const routes: APIRoute[] = [];
+
+        // Laravel Facade patterns
+        const patterns = [
+            'Route::get($PATH, $$$)',
+            'Route::post($PATH, $$$)',
+            'Route::put($PATH, $$$)',
+            'Route::delete($PATH, $$$)',
+            'Route::patch($PATH, $$$)',
+            'Route::any($PATH, $$$)',
+            'Route::match($METHODS, $PATH, $$$)',
+        ];
+
+        for (const pattern of patterns) {
+            const matches = root.findAll(pattern);
+
+            for (const match of matches) {
+                try {
+                    const text = match.text();
+                    let method = 'GET';
+                    let path = '/';
+
+                    // Extract Method
+                    const methodMatch = text.match(/Route::(\w+)/);
+                    if (methodMatch) {
+                        method = methodMatch[1].toUpperCase();
+                    }
+
+                    // Extract Path
+                    // $PATH captures the first argument
+                    const args = match.getMatch('PATH');
+                    if (args) {
+                        const pathText = args.text();
+                        // Strip quotes ('/', "/foo")
+                        path = pathText.replace(/^['"]|['"]$/g, '');
+                    }
+
+                    // Apply filters
+                    if (options.method && method !== 'ANY' && method !== 'MATCH' && method !== options.method.toUpperCase()) {
+                        continue;
+                    }
+                    if (options.pathPattern && !path.includes(options.pathPattern)) {
+                        continue;
+                    }
+                    if (options.framework && options.framework !== 'laravel') {
+                        continue;
+                    }
+
+                    // Extract Handler
+                    // Often formatted as [Controller::class, 'method'] or 'Controller@method' or function() {}
+                    let handler = 'closure';
+                    const fullText = match.text();
+
+                    if (fullText.includes('::class')) {
+                        const controllerMatch = fullText.match(/\[([\w\\]+)::class,\s*['"](\w+)['"]/);
+                        if (controllerMatch) {
+                            handler = `${controllerMatch[1]}@${controllerMatch[2]}`;
+                        } else {
+                            // Try simpler capture
+                            const classMatch = fullText.match(/([\w\\]+)::class/);
+                            if (classMatch) handler = classMatch[1];
+                        }
+                    } else if (fullText.includes('@')) {
+                        // String style 'Controller@method'
+                        const strMatch = fullText.match(/['"]([\w\\]+@\w+)['"]/);
+                        if (strMatch) handler = strMatch[1];
+                    }
+
+                    const range = match.range();
+                    const lineNumber = range.start.line + 1;
+
+                    routes.push({
+                        repository: repo.id,
+                        repositoryAlias: repo.alias,
+                        method,
+                        path,
+                        handler,
+                        filePath,
+                        relativePath: getRelativePath(repo.path, filePath),
+                        lineNumber,
+                        framework: 'laravel',
+                        parameters: this.extractPathParameters(path),
+                    });
+
+                } catch (error) {
+                    logger.debug('Error processing Laravel route match', { error });
+                }
+            }
         }
 
         return routes;
