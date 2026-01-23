@@ -43,6 +43,37 @@ export function getRelativePath(basePath: string, filePath: string): string {
 }
 
 /**
+ * Get language identifier for Markdown based on file extension
+ */
+export function getLanguageForFile(filePath: string): string {
+  const extension = filePath.split('.').pop()?.toLowerCase() || ''
+  const mapping: Record<string, string> = {
+    js: 'javascript',
+    jsx: 'javascript',
+    ts: 'typescript',
+    tsx: 'typescript',
+    html: 'html',
+    css: 'css',
+    json: 'json',
+    md: 'markdown',
+    py: 'python',
+    rs: 'rust',
+    go: 'go',
+    java: 'java',
+    c: 'c',
+    cpp: 'cpp',
+    cs: 'csharp',
+    sh: 'bash',
+    yaml: 'yaml',
+    yml: 'yaml',
+    toml: 'toml',
+    xml: 'xml',
+    sql: 'sql',
+  }
+  return mapping[extension] || ''
+}
+
+/**
  * Check if child path is within parent path.
  * Uses realpath to resolve symlinks and prevent path traversal attacks.
  *
