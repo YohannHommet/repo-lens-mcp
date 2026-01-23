@@ -22,6 +22,14 @@ This is a **Model Context Protocol (MCP)** server tailored for serious developme
 
 ---
 
+## Quickstart
+
+```bash
+npx mcp-repo-search-server
+```
+
+---
+
 ## Key Features
 
 Most code search tools are dumb using simple regex. This server uses **[ast-grep](https://ast-grep.github.io/)** (written in Rust) to parse your code into an Abstract Syntax Tree.
