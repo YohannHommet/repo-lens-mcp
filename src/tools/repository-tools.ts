@@ -1,0 +1,194 @@
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { z } from 'zod';
+import { RepositoryManager } from '../core/repository-manager.js';
+import { SearchCache } from '../utils/cache.js';
+
+export function registerRepositoryTools(
+  server: McpServer,
+  repoManager: RepositoryManager,
+  searchCache: SearchCache<any>
+) {
+  server.tool(
+    'register_repository',
+    'Register a local git repository for searching across projects',
+    {
+      path: z.string().describe('Absolute path to the git repository'),
+      alias: z.string().optional().describe('User-friendly name for the repository'),
+      tags: z.array(z.string()).optional().describe("Tags for filtering (e.g., ['frontend', 'typescript'])"),
+    },
+    async ({ path, alias, tags }) => {
+      try {
+        const repo = await repoManager.register(path, { alias, tags });
+        searchCache.clear();
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                {
+                  success: true,
+                  repository: {
+                    id: repo.id,
+                    path: repo.path,
+                    alias: repo.alias,
+                    tags: repo.tags,
+                    languages: repo.languages,
+                    fileCount: repo.fileCount,
+                    branch: repo.gitInfo.branch,
+                  },
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    'unregister_repository',
+    'Remove a repository from the search pool',
+    {
+      identifier: z.string().describe('Repository ID, alias, or path'),
+    },
+    async ({ identifier }) => {
+      try {
+        await repoManager.unregister(identifier);
+        searchCache.clear();
+        return {
+          content: [{ type: 'text', text: JSON.stringify({ success: true }) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    'list_repositories',
+    'List all registered repositories',
+    {
+      tags: z.array(z.string()).optional().describe('Filter by tags'),
+    },
+    async ({ tags }) => {
+      try {
+        const repos = await repoManager.list({ tags });
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                {
+                  count: repos.length,
+                  repositories: repos.map((r) => ({
+                    id: r.id,
+                    path: r.path,
+                    alias: r.alias,
+                    tags: r.tags,
+                    languages: r.languages,
+                    fileCount: r.fileCount,
+                    branch: r.gitInfo.branch,
+                    lastScanned: r.lastScanned,
+                  })),
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    'get_repository_info',
+    'Get detailed information about a repository',
+    {
+      identifier: z.string().describe('Repository ID, alias, or path'),
+    },
+    async ({ identifier }) => {
+      try {
+        const repo = await repoManager.get(identifier);
+        if (!repo) {
+          return {
+            content: [{ type: 'text', text: 'Repository not found' }],
+            isError: true,
+          };
+        }
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(repo, null, 2),
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    'refresh_repository',
+    'Re-scan a repository to update metadata',
+    {
+      identifier: z.string().describe('Repository ID, alias, or path'),
+    },
+    async ({ identifier }) => {
+      try {
+        const repo = await repoManager.refresh(identifier);
+
+        // Invalidate cache as repo content changed
+        searchCache.clear();
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                {
+                  success: true,
+                  repository: {
+                    id: repo.id,
+                    languages: repo.languages,
+                    fileCount: repo.fileCount,
+                    branch: repo.gitInfo.branch,
+                    lastCommit: repo.gitInfo.lastCommit,
+                    lastScanned: repo.lastScanned,
+                  },
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+}

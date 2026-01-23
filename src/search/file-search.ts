@@ -1,5 +1,5 @@
 import fg from 'fast-glob';
-import { readFile, stat } from 'fs/promises';
+import { stat } from 'fs/promises';
 import { join, extname } from 'path';
 
 import type { Repository } from '../types/repository.js';
@@ -46,6 +46,21 @@ export class FileSearchEngine {
     return results;
   }
 
+  private buildGlobPattern(pattern: string): string {
+    // Already a glob pattern (contains wildcards)
+    if (pattern.includes('*') || pattern.includes('?')) {
+      return pattern;
+    }
+
+    // Exact filename with extension (no path separator, has dot)
+    if (pattern.includes('.') && !pattern.includes('/')) {
+      return `**/${pattern}`;
+    }
+
+    // Partial match - wrap with wildcards
+    return `**/*${pattern}*`;
+  }
+
   private async searchInRepo(
     repo: Repository,
     pattern: string,
@@ -54,7 +69,7 @@ export class FileSearchEngine {
     const results: FileSearchResult[] = [];
 
     // Convert pattern to glob pattern
-    const globPattern = pattern.includes('*') ? pattern : `**/*${pattern}*`;
+    const globPattern = this.buildGlobPattern(pattern);
 
     const files = await fg([globPattern], {
       cwd: repo.path,
@@ -121,17 +136,26 @@ export class FileSearchEngine {
       throw new Error(`File too large (${Math.round(stats.size / 1024 / 1024)}MB). Maximum size is ${Math.round(DEFAULT_MAX_FILE_SIZE / 1024 / 1024)}MB`);
     }
 
-    let content = await readFile(filePath, 'utf-8');
-    const lines = content.split('\n');
-    const totalLines = lines.length;
+    // Safely open file with O_NOFOLLOW protection
+    const { safeOpenFile } = await import('../utils/path-utils.js');
+    const fileHandle = await safeOpenFile(filePath, repo.path);
 
-    if (startLine !== undefined || endLine !== undefined) {
-      const start = (startLine ?? 1) - 1;
-      const end = endLine ?? lines.length;
-      content = lines.slice(start, end).join('\n');
+    try {
+      const content = await fileHandle.fd.readFile('utf-8');
+      const lines = content.split('\n');
+      const totalLines = lines.length;
+
+      if (startLine !== undefined || endLine !== undefined) {
+        const start = (startLine ?? 1) - 1;
+        const end = endLine ?? lines.length;
+        const slicedContent = lines.slice(start, end).join('\n');
+        return { content: slicedContent, totalLines };
+      }
+
+      return { content, totalLines };
+    } finally {
+      await fileHandle.close();
     }
-
-    return { content, totalLines };
   }
 
   async getFileInfo(repo: Repository, filePath: string): Promise<FileInfo> {
