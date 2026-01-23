@@ -1,20 +1,28 @@
-# MCP Repo Search Server ⚡️
+<div align="center">
 
-[![Build Status](https://img.shields.io/github/actions/workflow/status/YohannHommet/mcp-repo-search-server/publish-dev.yml?style=flat-square)](https://github.com/YohannHommet/mcp-repo-search-server/actions)
-[![NPM Version](https://img.shields.io/npm/v/mcp-repo-search-server?style=flat-square&color=cb3837)](https://www.npmjs.com/package/mcp-repo-search-server)
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-red?style=flat-square)](LICENSE)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
-[![MCP Ready](https://img.shields.io/badge/MCP-Ready-green?style=flat-square)](https://modelcontextprotocol.io)
+# MCP Repo Search Server ⚡️
 
 **Give your Agent X-Ray Vision into your Codebase.**
 
-> Stop letting your LLM grep blindly. Upgrade to structural code intelligence.
+[![NPM Version](https://img.shields.io/npm/v/mcp-repo-search-server?style=for-the-badge&logo=npm&color=CB3837)](https://www.npmjs.com/package/mcp-repo-search-server)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/YohannHommet/mcp-repo-search-server/cd-main.yml?style=for-the-badge&logo=github-actions&logoColor=white)](https://github.com/YohannHommet/mcp-repo-search-server/actions)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-red?style=for-the-badge&logo=opensourceinitiative&logoColor=white)](LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![MCP Ready](https://img.shields.io/badge/MCP-Ready-green?style=for-the-badge&logo=modelcontextprotocol&logoColor=white)](https://modelcontextprotocol.io)
+
+*Stop letting your LLM grep blindly. Upgrade to structural code intelligence!*
+
+</div>
+
+---
+
+## Overview
 
 This is a **Model Context Protocol (MCP)** server tailored for serious development workflows. It doesn't just "read files"; it understands project structure, maps entire repositories, and performs AST-based searches to find exactly what you need—instantly.
 
 ---
 
-## 🚀 Why this server?
+## Key Features
 
 Most code search tools are dumb using simple regex. This server uses **[ast-grep](https://ast-grep.github.io/)** (written in Rust) to parse your code into an Abstract Syntax Tree.
 
@@ -25,7 +33,7 @@ Most code search tools are dumb using simple regex. This server uses **[ast-grep
 
 ---
 
-## 🛠️ Installation
+## Installation
 
 ### Option 1: Claude Desktop / VS Code (Recommended)
 
@@ -59,7 +67,7 @@ npx tsx scripts/test-server.ts
 
 ---
 
-## ⚡️ Capabilities
+## Capabilities
 
 ### 1. Repository Management
 Don't scan your whole hard drive. Register specific projects to keep context clean.
@@ -87,7 +95,7 @@ For when you just need to find a string, fast.
 
 ---
 
-## 📖 Usage Examples
+## Usage Examples
 
 Once installed, your LLM can use the following commands:
 
@@ -105,7 +113,7 @@ Calls `find_classes(name: "User")` followed by `get_file` for the relevant lines
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 You can tweak the server by passing environment variables in your JSON config:
 
@@ -127,7 +135,7 @@ Example:
 
 ---
 
-## ⚖️ License
+## License
 
 **AGPL-3.0**
 
