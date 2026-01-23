@@ -36,7 +36,7 @@ Add this to your `claude_desktop_config.json` (or VS Code MCP settings):
   "mcpServers": {
     "repo-search": {
       "command": "npx",
-      "args": ["-y", "mcp-repo-search-server@latest"]
+      "args": ["-y", "mcp-repo-search-server"]
     }
   }
 }
@@ -63,8 +63,9 @@ npx tsx scripts/test-server.ts
 
 ### 1. Repository Management
 Don't scan your whole hard drive. Register specific projects to keep context clean.
-- `register_repository`: Add a repo to the search index.
+- `register_repository`: Add a repo to the search index (requires absolute path).
 - `list_repositories`: See what's currently active.
+- `unregister_repository`: Remove a repo from the index.
 
 ### 2. AST Symbol Search (The Intelligence)
 Stop getting noise in your search results.
@@ -72,6 +73,8 @@ Stop getting noise in your search results.
 - `find_classes`: Locate entities.
 - `find_api_routes`: **Killer Feature.** Instantly maps all API endpoints in Express/NestJS/Fastify apps.
 - `find_types`: TypeScript interfaces and types.
+- `find_variables`: Locate variable declarations.
+- `find_constants`: Locate constant declarations.
 
 ### 3. High-Performance Text Search
 For when you just need to find a string, fast.
@@ -80,6 +83,25 @@ For when you just need to find a string, fast.
 ### 4. File Operations
 - `get_file`: Read content with line-range support.
 - `get_file_info`: Metadata only (size, language, last modified).
+- `list_dir`: Browse repository structure.
+
+---
+
+## 📖 Usage Examples
+
+Once installed, your LLM can use the following commands:
+
+### 1. Indexing a Project
+> "Register the repository at /path/to/my-project"
+Calls `register_repository(path: "/path/to/my-project")`
+
+### 2. Finding an API Endpoint
+> "Find the Express route that handles POST requests to /login"
+Calls `find_api_routes(framework: "express", method: "POST", pathPattern: "/login")`
+
+### 3. Understanding a Class
+> "Find the definition of the User class and show me its methods"
+Calls `find_classes(name: "User")` followed by `get_file` for the relevant lines.
 
 ---
 

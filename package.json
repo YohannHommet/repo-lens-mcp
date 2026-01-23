@@ -15,10 +15,15 @@
   },
   "keywords": [
     "mcp",
+    "mcp-server",
     "claude",
     "code-search",
     "repository",
-    "ast"
+    "ast",
+    "ast-grep",
+    "ripgrep",
+    "context-extraction",
+    "developer-tools"
   ],
   "main": "dist/index.js",
   "bin": {
