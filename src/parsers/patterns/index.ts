@@ -25,18 +25,3 @@ export const LANGUAGE_PATTERNS: Record<string, LanguagePatterns> = {
   },
 };
 
-export function getLanguageFromExtension(ext: string): string | null {
-  const map: Record<string, string> = {
-    '.ts': 'typescript',
-    '.tsx': 'tsx',
-    '.js': 'javascript',
-    '.jsx': 'jsx',
-    '.mjs': 'javascript',
-    '.cjs': 'javascript',
-  };
-  return map[ext] || null;
-}
-
-export function getSupportedExtensions(): string[] {
-  return ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'];
-}

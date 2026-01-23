@@ -54,8 +54,25 @@ export const TYPESCRIPT_PATTERNS: Record<SymbolKind, string[]> = {
 };
 
 export const TYPESCRIPT_ARROW_FUNCTION_PATTERNS = [
+  // Basic arrow functions
   'const $NAME = ($$$) => $_',
   'const $NAME = async ($$$) => $_',
   'export const $NAME = ($$$) => $_',
   'export const $NAME = async ($$$) => $_',
+
+  // With return type annotations
+  'const $NAME = ($$$): $_ => $_',
+  'const $NAME = async ($$$): $_ => $_',
+  'export const $NAME = ($$$): $_ => $_',
+  'export const $NAME = async ($$$): $_ => $_',
+
+  // With generics
+  'const $NAME = <$_>($$$) => $_',
+  'const $NAME = <$_>($$$): $_ => $_',
+  'export const $NAME = <$_>($$$) => $_',
+  'export const $NAME = <$_>($$$): $_ => $_',
+
+  // Async with generics and types
+  'const $NAME = async <$_>($$$): $_ => $_',
+  'export const $NAME = async <$_>($$$): $_ => $_',
 ];

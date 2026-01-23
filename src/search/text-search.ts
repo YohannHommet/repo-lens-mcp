@@ -69,9 +69,9 @@ export class TextSearchEngine {
 
       logger.debug('Running ripgrep', { args, repo: repo.path });
 
-      let rg: ChildProcess;
+      let ripgrepProcess: ChildProcess;
       try {
-        rg = spawn(rgPath, args, {
+        ripgrepProcess = spawn(rgPath, args, {
           stdio: ['ignore', 'pipe', 'pipe'],
         });
       } catch (error) {
@@ -83,16 +83,36 @@ export class TextSearchEngine {
       const results: TextSearchResult[] = [];
       let buffer = '';
       let timedOut = false;
+      let resolved = false;
 
-      // Set timeout to prevent hanging
+      const cleanup = () => {
+        if (!resolved) {
+          resolved = true;
+          ripgrepProcess.stdout?.removeAllListeners();
+          ripgrepProcess.stderr?.removeAllListeners();
+          ripgrepProcess.removeAllListeners();
+        }
+      };
+
+      // Set timeout with SIGKILL fallback
       const timeoutId = setTimeout(() => {
         timedOut = true;
-        rg.kill('SIGTERM');
+        ripgrepProcess.kill('SIGTERM');
+
+        // SIGKILL fallback if SIGTERM doesn't work
+        setTimeout(() => {
+          if (!resolved) {
+            ripgrepProcess.kill('SIGKILL');
+          }
+        }, 1000);
+
         logger.warn('Ripgrep search timed out', { repo: repo.path, timeout: this.timeout });
+        cleanup();
+        resolve(results);
       }, this.timeout);
 
-      rg.stdout?.on('data', (data: Buffer) => {
-        if (timedOut) return;
+      ripgrepProcess.stdout?.on('data', (data: Buffer) => {
+        if (timedOut || resolved) return;
 
         buffer += data.toString();
         const lines = buffer.split('\n');
@@ -120,16 +140,16 @@ export class TextSearchEngine {
                 afterContext: [],
               });
             }
-            // Note: Context lines are not processed in this simplified version
-            // Implementing full context support would require tracking context messages
-            // and associating them with their corresponding match messages
-          } catch {
-            // Invalid JSON line, skip
+          } catch (error) {
+            logger.debug('Failed to parse ripgrep JSON', {
+              line: line.slice(0, 100),
+              error: error instanceof Error ? error.message : 'Unknown error'
+            });
           }
         }
       });
 
-      rg.stderr?.on('data', (data: Buffer) => {
+      ripgrepProcess.stderr?.on('data', (data: Buffer) => {
         const message = data.toString();
         // Only log actual errors, not "no matches found" type messages
         if (message.includes('error') || message.includes('Error')) {
@@ -137,16 +157,22 @@ export class TextSearchEngine {
         }
       });
 
-      rg.on('close', (code) => {
+      ripgrepProcess.on('close', (code) => {
         clearTimeout(timeoutId);
-        logger.debug('Ripgrep completed', { code, resultCount: results.length, timedOut });
-        resolve(results);
+        if (!resolved) {
+          logger.debug('Ripgrep completed', { code, resultCount: results.length, timedOut });
+          cleanup();
+          resolve(results);
+        }
       });
 
-      rg.on('error', (error) => {
+      ripgrepProcess.on('error', (error) => {
         clearTimeout(timeoutId);
-        logger.error('Ripgrep error', { error });
-        resolve([]);
+        if (!resolved) {
+          logger.error('Ripgrep error', { error });
+          cleanup();
+          resolve([]);
+        }
       });
     });
   }

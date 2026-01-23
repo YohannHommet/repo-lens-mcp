@@ -1,4 +1,4 @@
-import { parse } from '@ast-grep/napi';
+import { parse, type SgNode } from '@ast-grep/napi';
 import { readFile } from 'fs/promises';
 import fg from 'fast-glob';
 
@@ -109,8 +109,6 @@ export class SymbolSearchEngine {
     }
 
     const root = ast.root();
-    // Pre-split lines for export checking (performance fix)
-    const lines = content.split('\n');
     // Track seen symbols to avoid duplicates
     const seenSymbols = new Set<string>();
 
@@ -134,8 +132,8 @@ export class SymbolSearchEngine {
             continue;
           }
 
-          // Check if exported using pre-split lines
-          const exported = this.isExportedFromLines(lines, range.start.line);
+          // Check export status
+          const exported = this.checkExportStatus(match, name, content);
 
           // Apply exportedOnly filter
           if (options.exportedOnly && !exported) {
@@ -175,12 +173,42 @@ export class SymbolSearchEngine {
   }
 
   /**
-   * Check if a symbol is exported using pre-split lines array
+   * Check if a symbol is exported using AST analysis and regex fallback
    */
-  private isExportedFromLines(lines: string[], line: number): boolean {
-    if (line < 0 || line >= lines.length) return false;
-    const lineContent = lines[line];
-    return lineContent.trimStart().startsWith('export');
+  private checkExportStatus(match: SgNode, name: string, content: string): boolean {
+    // 1. Check AST ancestry for export_statement
+    // This handles: export function..., export class..., export const...
+    try {
+      let node: SgNode | null = match;
+      for (let i = 0; i < 3; i++) {
+        if (!node) break;
+        if (node.kind() === 'export_statement') return true;
+        node = node.parent();
+      }
+    } catch (e) {
+      // Ignore AST errors
+    }
+
+    // 2. Check for named exports: export { name }
+    const namedExportRegex = new RegExp(`export\\s*{[^}]*\\b${name}\\b[^}]*}`, 'm');
+    if (namedExportRegex.test(content)) return true;
+
+    // 3. Check for default export: export default name
+    const defaultExportRegex = new RegExp(`export\\s+default\\s+\\b${name}\\b`, 'm');
+    if (defaultExportRegex.test(content)) return true;
+
+    // 4. Fallback: check if line starts with export (legacy check)
+    try {
+      const range = match.range();
+      const lineStart = content.lastIndexOf('\n', range.start.index) + 1;
+      const lineEnd = content.indexOf('\n', range.start.index);
+      const line = content.substring(lineStart, lineEnd !== -1 ? lineEnd : content.length);
+      if (line.trim().startsWith('export')) return true;
+    } catch (e) {
+      // Ignore
+    }
+
+    return false;
   }
 
   private extractSignature(text: string, kind: SymbolKind): string {

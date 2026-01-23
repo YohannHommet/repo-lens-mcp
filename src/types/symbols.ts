@@ -34,16 +34,26 @@ export interface SymbolResult {
 export interface APIRoute {
   repository: string;
   repositoryAlias?: string;
-  method: string;
-  path: string;
-  handler: string;
-  filePath: string;
-  relativePath: string;
-  lineNumber: number;
+  method: string;           // GET, POST, PUT, DELETE, etc.
+  path: string;             // /api/users/:id
+  handler: string;          // Function name handling the route
+  filePath: string;         // Absolute path
+  relativePath: string;     // Relative to repo
+  lineNumber: number;       // Line where route is defined
+  framework?: string;       // express, fastify, nestjs, etc.
+  middleware?: string[];    // Middleware names
   parameters?: {
-    path: string[];
-    query: string[];
-    body?: string;
+    path: string[];         // Route params like :id, :userId
+    query: string[];        // Query params
+    body?: string;          // Request body type
   };
-  response?: string;
+  response?: string;        // Response type
+}
+
+export interface APIRouteSearchOptions {
+  method?: string;          // Filter by HTTP method
+  pathPattern?: string;     // Filter by path pattern
+  repos?: string[];         // Repository identifiers
+  framework?: string;       // express, fastify, nestjs
+  maxResults?: number;
 }
