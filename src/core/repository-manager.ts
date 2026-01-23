@@ -1,34 +1,27 @@
-import { readFile, writeFile, mkdir } from 'fs/promises';
-import { existsSync } from 'fs';
-import { join, dirname, extname } from 'path';
 import { randomUUID } from 'crypto';
-import fg from 'fast-glob';
 
 import type { Repository, RegisterOptions, RepositoryFilter } from '../types/repository.js';
-import type { RepositoriesConfig } from '../config/types.js';
-import { getGitInfo, isGitRepository } from '../utils/git-utils.js';
-import { normalizePath, isValidDirectory, isSubPath } from '../utils/path-utils.js';
+import { normalizePath, isSubPath } from '../utils/path-utils.js';
 import { logger } from '../utils/logger.js';
-import { DEFAULT_IGNORE_PATTERNS, getLanguageFromExtension } from '../constants.js';
+import { ConfigStore } from './config-store.js';
+import { RepositoryScanner } from './repository-scanner.js';
 
 export class RepositoryManager {
   private repositories: Map<string, Repository> = new Map();
-  private configPath: string;
+  private store: ConfigStore;
+  private scanner: RepositoryScanner;
 
   constructor(configDir: string) {
-    this.configPath = join(configDir, 'repositories.json');
+    this.store = new ConfigStore(configDir);
+    this.scanner = new RepositoryScanner();
+  }
+
+  async load(): Promise<void> {
+    this.repositories = await this.store.load();
   }
 
   async register(path: string, options?: RegisterOptions): Promise<Repository> {
-    const normalizedPath = normalizePath(path);
-
-    if (!isValidDirectory(normalizedPath)) {
-      throw new Error(`Invalid directory: ${path}`);
-    }
-
-    if (!(await isGitRepository(normalizedPath))) {
-      throw new Error(`Not a git repository: ${path}`);
-    }
+    const normalizedPath = await this.scanner.validatePath(path);
 
     // Check if already registered
     for (const repo of this.repositories.values()) {
@@ -46,9 +39,7 @@ export class RepositoryManager {
       }
     }
 
-    const gitInfo = await getGitInfo(normalizedPath);
-    const languages = await this.detectLanguages(normalizedPath);
-    const fileCount = await this.countFiles(normalizedPath);
+    const { gitInfo, languages, fileCount } = await this.scanner.scan(normalizedPath);
 
     const repository: Repository = {
       id: randomUUID(),
@@ -62,7 +53,7 @@ export class RepositoryManager {
     };
 
     this.repositories.set(repository.id, repository);
-    await this.save();
+    await this.store.save(this.repositories);
 
     logger.info('Repository registered', { id: repository.id, path: normalizedPath });
 
@@ -76,7 +67,7 @@ export class RepositoryManager {
     }
 
     this.repositories.delete(repo.id);
-    await this.save();
+    await this.store.save(this.repositories);
 
     logger.info('Repository unregistered', { id: repo.id });
   }
@@ -101,12 +92,14 @@ export class RepositoryManager {
       throw new Error(`Repository not found: ${identifier}`);
     }
 
-    repo.gitInfo = await getGitInfo(repo.path);
-    repo.languages = await this.detectLanguages(repo.path);
-    repo.fileCount = await this.countFiles(repo.path);
+    const { gitInfo, languages, fileCount } = await this.scanner.scan(repo.path);
+
+    repo.gitInfo = gitInfo;
+    repo.languages = languages;
+    repo.fileCount = fileCount;
     repo.lastScanned = new Date();
 
-    await this.save();
+    await this.store.save(this.repositories);
 
     logger.info('Repository refreshed', { id: repo.id });
 
@@ -164,87 +157,5 @@ export class RepositoryManager {
 
     return null;
   }
-
-  async save(): Promise<void> {
-    const dir = dirname(this.configPath);
-    if (!existsSync(dir)) {
-      await mkdir(dir, { recursive: true });
-    }
-
-    const config: RepositoriesConfig = {
-      version: 1,
-      repositories: Array.from(this.repositories.values()).map((repo) => ({
-        ...repo,
-        lastScanned: repo.lastScanned.toISOString(),
-      })),
-    };
-
-    await writeFile(this.configPath, JSON.stringify(config, null, 2));
-    logger.debug('Configuration saved', { path: this.configPath });
-  }
-
-  async load(): Promise<void> {
-    if (!existsSync(this.configPath)) {
-      logger.info('No configuration file found, starting fresh');
-      return;
-    }
-
-    try {
-      const content = await readFile(this.configPath, 'utf-8');
-      const config: RepositoriesConfig = JSON.parse(content);
-
-      this.repositories.clear();
-
-      for (const serialized of config.repositories) {
-        const repo: Repository = {
-          ...serialized,
-          lastScanned: new Date(serialized.lastScanned),
-        };
-        this.repositories.set(repo.id, repo);
-      }
-
-      logger.info('Configuration loaded', { repositoryCount: this.repositories.size });
-    } catch (error) {
-      logger.error('Failed to load configuration', { error });
-      throw new Error('Failed to load configuration');
-    }
-  }
-
-  private async detectLanguages(path: string): Promise<string[]> {
-    const languages = new Set<string>();
-
-    try {
-      const files = await fg(['**/*'], {
-        cwd: path,
-        ignore: DEFAULT_IGNORE_PATTERNS,
-        onlyFiles: true,
-        deep: 5,
-      });
-
-      for (const file of files.slice(0, 1000)) {
-        const ext = extname(file);
-        const lang = getLanguageFromExtension(ext);
-        if (lang) {
-          languages.add(lang);
-        }
-      }
-    } catch (error) {
-      logger.warn('Failed to detect languages', { error });
-    }
-
-    return Array.from(languages);
-  }
-
-  private async countFiles(path: string): Promise<number> {
-    try {
-      const files = await fg(['**/*'], {
-        cwd: path,
-        ignore: DEFAULT_IGNORE_PATTERNS,
-        onlyFiles: true,
-      });
-      return files.length;
-    } catch {
-      return 0;
-    }
-  }
 }
+

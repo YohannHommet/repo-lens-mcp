@@ -1,13 +1,15 @@
+export interface GitInfo {
+  remote?: string;
+  branch: string;
+  lastCommit: string;
+}
+
 export interface Repository {
   id: string;
   path: string;
   alias?: string;
   tags: string[];
-  gitInfo: {
-    remote?: string;
-    branch: string;
-    lastCommit: string;
-  };
+  gitInfo: GitInfo;
   languages: string[];
   lastScanned: Date;
   fileCount: number;

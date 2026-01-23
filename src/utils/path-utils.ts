@@ -1,5 +1,7 @@
 import { resolve, relative, isAbsolute } from 'path';
 import { existsSync, statSync, realpathSync } from 'fs';
+import { open } from 'fs/promises';
+import { constants } from 'fs';
 
 export function normalizePath(path: string): string {
   return resolve(path);
@@ -41,6 +43,9 @@ export function getRelativePath(basePath: string, filePath: string): string {
 /**
  * Check if child path is within parent path.
  * Uses realpath to resolve symlinks and prevent path traversal attacks.
+ * 
+ * WARNING: This has a TOCTOU (Time-Of-Check-Time-Of-Use) vulnerability.
+ * Use safeOpenFile() for actual file operations to prevent race conditions.
  */
 export function isSubPath(parent: string, child: string): boolean {
   try {
@@ -52,4 +57,71 @@ export function isSubPath(parent: string, child: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Safely open a file with O_NOFOLLOW to prevent symlink attacks.
+ * Re-verifies the path is within the allowed directory after opening.
+ * 
+ * This prevents TOCTOU race conditions where a symlink could be swapped
+ * between the isSubPath check and the actual file read.
+ * 
+ * @param filePath - Absolute path to the file
+ * @param allowedDir - Directory that filePath must be within
+ * @returns File handle
+ * @throws Error if file is outside allowed directory or is a symlink
+ */
+export async function safeOpenFile(filePath: string, allowedDir: string): Promise<{ fd: any; close: () => Promise<void> }> {
+  // Initial check
+  if (!isSubPath(allowedDir, filePath)) {
+    throw new Error(`File is not within allowed directory: ${filePath}`);
+  }
+
+  // Open with O_NOFOLLOW to reject symlinks
+  // Note: O_NOFOLLOW might not prevent all attacks on all platforms
+  // but it's a good defense-in-depth measure
+  let fileHandle;
+  try {
+    // Open file with NOFOLLOW flag (fails if file is a symlink)
+    fileHandle = await open(filePath, constants.O_RDONLY | constants.O_NOFOLLOW);
+  } catch (error: any) {
+    if (error.code === 'ELOOP' || error.code === 'EMLINK') {
+      throw new Error('File is a symbolic link (security: symlinks not allowed)');
+    }
+    throw error;
+  }
+
+  // Additional verification: check the opened file's real path
+  // This helps catch race conditions
+  try {
+    const fd = fileHandle.fd;
+    // On Linux, we can verify via /proc/self/fd/{fd}
+    // On other platforms, this might not work, but the O_NOFOLLOW should be sufficient
+    if (process.platform === 'linux') {
+      try {
+        const fdPath = `/proc/self/fd/${fd}`;
+        const realPath = realpathSync(fdPath);
+        if (!isSubPath(allowedDir, realPath)) {
+          await fileHandle.close();
+          throw new Error('Symlink attack detected: real path outside allowed directory');
+        }
+      } catch (error: any) {
+        // If we can't verify via /proc/self/fd, continue
+        // O_NOFOLLOW should have already prevented symlink issues
+        if (error.message && error.message.includes('outside allowed directory')) {
+          throw error;
+        }
+      }
+    }
+  } catch (error) {
+    if (fileHandle) {
+      await fileHandle.close();
+    }
+    throw error;
+  }
+
+  return {
+    fd: fileHandle,
+    close: async () => await fileHandle.close(),
+  };
 }
