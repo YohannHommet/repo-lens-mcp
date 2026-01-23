@@ -1,12 +1,12 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { z } from 'zod';
-import { RepositoryManager } from '../core/repository-manager.js';
-import { SearchCache } from '../utils/cache.js';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { RepositoryManager } from '../core/repository-manager.js'
+import type { SearchCache } from '../utils/cache.js'
+import { z } from 'zod'
 
 export function registerRepositoryTools(
   server: McpServer,
   repoManager: RepositoryManager,
-  searchCache: SearchCache<any>
+  searchCache: SearchCache<any>,
 ) {
   server.tool(
     'register_repository',
@@ -14,12 +14,12 @@ export function registerRepositoryTools(
     {
       path: z.string().describe('Absolute path to the git repository'),
       alias: z.string().optional().describe('User-friendly name for the repository'),
-      tags: z.array(z.string()).optional().describe("Tags for filtering (e.g., ['frontend', 'typescript'])"),
+      tags: z.array(z.string()).optional().describe('Tags for filtering (e.g., [\'frontend\', \'typescript\'])'),
     },
     async ({ path, alias, tags }) => {
       try {
-        const repo = await repoManager.register(path, { alias, tags });
-        searchCache.clear();
+        const repo = await repoManager.register(path, { alias, tags })
+        searchCache.clear()
         return {
           content: [
             {
@@ -38,19 +38,20 @@ export function registerRepositoryTools(
                   },
                 },
                 null,
-                2
+                2,
               ),
             },
           ],
-        };
-      } catch (error) {
+        }
+      }
+      catch (error) {
         return {
           content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
           isError: true,
-        };
+        }
       }
-    }
-  );
+    },
+  )
 
   server.tool(
     'unregister_repository',
@@ -60,19 +61,20 @@ export function registerRepositoryTools(
     },
     async ({ identifier }) => {
       try {
-        await repoManager.unregister(identifier);
-        searchCache.clear();
+        await repoManager.unregister(identifier)
+        searchCache.clear()
         return {
           content: [{ type: 'text', text: JSON.stringify({ success: true }) }],
-        };
-      } catch (error) {
+        }
+      }
+      catch (error) {
         return {
           content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
           isError: true,
-        };
+        }
       }
-    }
-  );
+    },
+  )
 
   server.tool(
     'list_repositories',
@@ -82,7 +84,7 @@ export function registerRepositoryTools(
     },
     async ({ tags }) => {
       try {
-        const repos = await repoManager.list({ tags });
+        const repos = await repoManager.list({ tags })
         return {
           content: [
             {
@@ -90,7 +92,7 @@ export function registerRepositoryTools(
               text: JSON.stringify(
                 {
                   count: repos.length,
-                  repositories: repos.map((r) => ({
+                  repositories: repos.map(r => ({
                     id: r.id,
                     path: r.path,
                     alias: r.alias,
@@ -102,19 +104,20 @@ export function registerRepositoryTools(
                   })),
                 },
                 null,
-                2
+                2,
               ),
             },
           ],
-        };
-      } catch (error) {
+        }
+      }
+      catch (error) {
         return {
           content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
           isError: true,
-        };
+        }
       }
-    }
-  );
+    },
+  )
 
   server.tool(
     'get_repository_info',
@@ -124,12 +127,12 @@ export function registerRepositoryTools(
     },
     async ({ identifier }) => {
       try {
-        const repo = await repoManager.get(identifier);
+        const repo = await repoManager.get(identifier)
         if (!repo) {
           return {
             content: [{ type: 'text', text: 'Repository not found' }],
             isError: true,
-          };
+          }
         }
         return {
           content: [
@@ -138,15 +141,16 @@ export function registerRepositoryTools(
               text: JSON.stringify(repo, null, 2),
             },
           ],
-        };
-      } catch (error) {
+        }
+      }
+      catch (error) {
         return {
           content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
           isError: true,
-        };
+        }
       }
-    }
-  );
+    },
+  )
 
   server.tool(
     'refresh_repository',
@@ -156,10 +160,10 @@ export function registerRepositoryTools(
     },
     async ({ identifier }) => {
       try {
-        const repo = await repoManager.refresh(identifier);
+        const repo = await repoManager.refresh(identifier)
 
         // Invalidate cache as repo content changed
-        searchCache.clear();
+        searchCache.clear()
 
         return {
           content: [
@@ -178,17 +182,18 @@ export function registerRepositoryTools(
                   },
                 },
                 null,
-                2
+                2,
               ),
             },
           ],
-        };
-      } catch (error) {
+        }
+      }
+      catch (error) {
         return {
           content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
           isError: true,
-        };
+        }
       }
-    }
-  );
+    },
+  )
 }

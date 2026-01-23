@@ -95,9 +95,11 @@ You can tweak the server by passing environment variables in your JSON config:
 
 Example:
 ```json
-"env": {
-  "MCP_LOG_LEVEL": "error",
-  "MCP_CACHE_ENABLED": "true"
+{
+  "env": {
+    "MCP_LOG_LEVEL": "error",
+    "MCP_CACHE_ENABLED": "true"
+  }
 }
 ```
 

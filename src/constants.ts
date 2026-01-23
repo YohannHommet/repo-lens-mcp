@@ -17,7 +17,7 @@ export const DEFAULT_IGNORE_PATTERNS = [
   '**/__pycache__/**',
   '**/.venv/**',
   '**/venv/**',
-];
+]
 
 /**
  * Additional patterns to ignore for symbol search (generated/minified files)
@@ -28,7 +28,7 @@ export const SYMBOL_SEARCH_IGNORE_PATTERNS = [
   '**/*.min.js',
   '**/*.bundle.js',
   '**/*.generated.*',
-];
+]
 
 /**
  * Supported languages enum for strict typing
@@ -52,7 +52,7 @@ export enum SupportedLanguage {
   JSON = 'json',
   YAML = 'yaml',
   Markdown = 'markdown',
-  SQL = 'sql'
+  SQL = 'sql',
 }
 
 /**
@@ -78,32 +78,32 @@ export const LANGUAGE_EXTENSIONS: Record<SupportedLanguage, string[]> = {
   [SupportedLanguage.YAML]: ['.yaml', '.yml'],
   [SupportedLanguage.Markdown]: ['.md'],
   [SupportedLanguage.SQL]: ['.sql'],
-};
+}
 
 /**
  * Get language name from file extension
  */
 export function getLanguageFromExtension(ext: string): SupportedLanguage | undefined {
-  const normalizedExt = ext.toLowerCase();
+  const normalizedExt = ext.toLowerCase()
   for (const [lang, extensions] of Object.entries(LANGUAGE_EXTENSIONS)) {
     if (extensions.includes(normalizedExt)) {
-      return lang as SupportedLanguage;
+      return lang as SupportedLanguage
     }
   }
-  return undefined;
+  return undefined
 }
 
 /**
  * Default search timeout in milliseconds
  */
-export const DEFAULT_SEARCH_TIMEOUT_MS = 30000;
+export const DEFAULT_SEARCH_TIMEOUT_MS = 30000
 
 /**
  * Default maximum search results
  */
-export const DEFAULT_MAX_RESULTS = 500;
+export const DEFAULT_MAX_RESULTS = 500
 
 /**
  * Maximum file size to read (10 MB)
  */
-export const DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024;
+export const DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024

@@ -1,22 +1,22 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { z } from 'zod';
-import { RepositoryManager } from '../core/repository-manager.js';
-import { SymbolSearchEngine } from '../search/symbol-search.js';
-import { SearchCache } from '../utils/cache.js';
-import { ServerConfig } from '../config/types.js';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { ServerConfig } from '../config/types.js'
+import type { RepositoryManager } from '../core/repository-manager.js'
+import type { SymbolSearchEngine } from '../search/symbol-search.js'
+import type { SearchCache } from '../utils/cache.js'
+import { z } from 'zod'
 
 export function registerSymbolTools(
   server: McpServer,
   repoManager: RepositoryManager,
   symbolSearch: SymbolSearchEngine,
   searchCache: SearchCache<any>,
-  config: ServerConfig
+  config: ServerConfig,
 ) {
   server.tool(
     'find_functions',
     'Find function/method definitions across repositories using AST analysis',
     {
-      name: z.string().optional().describe("Function name pattern (supports wildcards like 'handle*')"),
+      name: z.string().optional().describe('Function name pattern (supports wildcards like \'handle*\')'),
       repos: z.array(z.string()).optional().describe('Repository identifiers to search'),
       language: z.string().optional().describe('Filter by language (typescript, javascript)'),
       exportedOnly: z.boolean().optional().describe('Only return exported functions (default: false)'),
@@ -24,26 +24,26 @@ export function registerSymbolTools(
     },
     async ({ name, repos, language, exportedOnly, maxResults }) => {
       try {
-        const repositories = repoManager.resolveIdentifiers(repos);
+        const repositories = repoManager.resolveIdentifiers(repos)
 
         if (repositories.length === 0) {
           return {
             content: [{ type: 'text', text: 'No repositories found. Register repositories first.' }],
             isError: true,
-          };
+          }
         }
 
         // Check cache
         const cacheKey = searchCache.generateKey('symbol:function', {
           name,
-          repos: repositories.map((r) => r.id).sort(),
+          repos: repositories.map(r => r.id).sort(),
           language,
           exportedOnly,
           maxResults,
-        });
+        })
 
         if (config.cacheEnabled) {
-          const cached = searchCache.get(cacheKey);
+          const cached = searchCache.get(cacheKey)
           if (cached) {
             return {
               content: [
@@ -52,7 +52,7 @@ export function registerSymbolTools(
                   text: JSON.stringify(
                     {
                       totalFound: (cached as any[]).length,
-                      functions: (cached as any[]).map((r) => ({
+                      functions: (cached as any[]).map(r => ({
                         name: r.name,
                         repository: r.repositoryAlias || r.repository,
                         file: r.relativePath,
@@ -63,11 +63,11 @@ export function registerSymbolTools(
                       cached: true,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
-            };
+            }
           }
         }
 
@@ -79,11 +79,11 @@ export function registerSymbolTools(
             exportedOnly: exportedOnly ?? false,
             maxResults: maxResults ?? 100,
           },
-          repositories
-        );
+          repositories,
+        )
 
         if (config.cacheEnabled) {
-          searchCache.set(cacheKey, results);
+          searchCache.set(cacheKey, results)
         }
 
         return {
@@ -93,7 +93,7 @@ export function registerSymbolTools(
               text: JSON.stringify(
                 {
                   totalFound: results.length,
-                  functions: results.map((r) => ({
+                  functions: results.map(r => ({
                     name: r.name,
                     repository: r.repositoryAlias || r.repository,
                     file: r.relativePath,
@@ -103,19 +103,20 @@ export function registerSymbolTools(
                   })),
                 },
                 null,
-                2
+                2,
               ),
             },
           ],
-        };
-      } catch (error) {
+        }
+      }
+      catch (error) {
         return {
           content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
           isError: true,
-        };
+        }
       }
-    }
-  );
+    },
+  )
 
   server.tool(
     'find_classes',
@@ -129,26 +130,26 @@ export function registerSymbolTools(
     },
     async ({ name, repos, language, exportedOnly, maxResults }) => {
       try {
-        const repositories = repoManager.resolveIdentifiers(repos);
+        const repositories = repoManager.resolveIdentifiers(repos)
 
         if (repositories.length === 0) {
           return {
             content: [{ type: 'text', text: 'No repositories found.' }],
             isError: true,
-          };
+          }
         }
 
         // Check cache
         const cacheKey = searchCache.generateKey('symbol:class', {
           name,
-          repos: repositories.map((r) => r.id).sort(),
+          repos: repositories.map(r => r.id).sort(),
           language,
           exportedOnly,
           maxResults,
-        });
+        })
 
         if (config.cacheEnabled) {
-          const cached = searchCache.get(cacheKey);
+          const cached = searchCache.get(cacheKey)
           if (cached) {
             return {
               content: [
@@ -157,7 +158,7 @@ export function registerSymbolTools(
                   text: JSON.stringify(
                     {
                       totalFound: (cached as any[]).length,
-                      classes: (cached as any[]).map((r) => ({
+                      classes: (cached as any[]).map(r => ({
                         name: r.name,
                         repository: r.repositoryAlias || r.repository,
                         file: r.relativePath,
@@ -168,11 +169,11 @@ export function registerSymbolTools(
                       cached: true,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
-            };
+            }
           }
         }
 
@@ -184,11 +185,11 @@ export function registerSymbolTools(
             exportedOnly: exportedOnly ?? false,
             maxResults: maxResults ?? 100,
           },
-          repositories
-        );
+          repositories,
+        )
 
         if (config.cacheEnabled) {
-          searchCache.set(cacheKey, results);
+          searchCache.set(cacheKey, results)
         }
 
         return {
@@ -198,7 +199,7 @@ export function registerSymbolTools(
               text: JSON.stringify(
                 {
                   totalFound: results.length,
-                  classes: results.map((r) => ({
+                  classes: results.map(r => ({
                     name: r.name,
                     repository: r.repositoryAlias || r.repository,
                     file: r.relativePath,
@@ -208,19 +209,20 @@ export function registerSymbolTools(
                   })),
                 },
                 null,
-                2
+                2,
               ),
             },
           ],
-        };
-      } catch (error) {
+        }
+      }
+      catch (error) {
         return {
           content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
           isError: true,
-        };
+        }
       }
-    }
-  );
+    },
+  )
 
   server.tool(
     'find_types',
@@ -234,26 +236,26 @@ export function registerSymbolTools(
     },
     async ({ name, repos, language, exportedOnly, maxResults }) => {
       try {
-        const repositories = repoManager.resolveIdentifiers(repos);
+        const repositories = repoManager.resolveIdentifiers(repos)
 
         if (repositories.length === 0) {
           return {
             content: [{ type: 'text', text: 'No repositories found.' }],
             isError: true,
-          };
+          }
         }
 
         // Check cache
         const cacheKey = searchCache.generateKey('symbol:types', {
           name,
-          repos: repositories.map((r) => r.id).sort(),
+          repos: repositories.map(r => r.id).sort(),
           language,
           exportedOnly,
           maxResults,
-        });
+        })
 
         if (config.cacheEnabled) {
-          const cached = searchCache.get(cacheKey);
+          const cached = searchCache.get(cacheKey)
           if (cached) {
             return {
               content: [
@@ -262,7 +264,7 @@ export function registerSymbolTools(
                   text: JSON.stringify(
                     {
                       totalFound: (cached as any[]).length,
-                      types: (cached as any[]).map((r) => ({
+                      types: (cached as any[]).map(r => ({
                         name: r.name,
                         kind: r.kind,
                         repository: r.repositoryAlias || r.repository,
@@ -274,11 +276,11 @@ export function registerSymbolTools(
                       cached: true,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
-            };
+            }
           }
         }
 
@@ -286,18 +288,18 @@ export function registerSymbolTools(
         const [typeResults, interfaceResults] = await Promise.all([
           symbolSearch.search(
             { kind: 'type', name, language, exportedOnly: exportedOnly ?? false, maxResults: maxResults ?? 50 },
-            repositories
+            repositories,
           ),
           symbolSearch.search(
             { kind: 'interface', name, language, exportedOnly: exportedOnly ?? false, maxResults: maxResults ?? 50 },
-            repositories
+            repositories,
           ),
-        ]);
+        ])
 
-        const results = [...typeResults, ...interfaceResults];
+        const results = [...typeResults, ...interfaceResults]
 
         if (config.cacheEnabled) {
-          searchCache.set(cacheKey, results);
+          searchCache.set(cacheKey, results)
         }
 
         return {
@@ -307,7 +309,7 @@ export function registerSymbolTools(
               text: JSON.stringify(
                 {
                   totalFound: results.length,
-                  types: results.map((r) => ({
+                  types: results.map(r => ({
                     name: r.name,
                     kind: r.kind,
                     repository: r.repositoryAlias || r.repository,
@@ -318,19 +320,20 @@ export function registerSymbolTools(
                   })),
                 },
                 null,
-                2
+                2,
               ),
             },
           ],
-        };
-      } catch (error) {
+        }
+      }
+      catch (error) {
         return {
           content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
           isError: true,
-        };
+        }
       }
-    }
-  );
+    },
+  )
 
   server.tool(
     'find_enums',
@@ -344,26 +347,26 @@ export function registerSymbolTools(
     },
     async ({ name, repos, language, exportedOnly, maxResults }) => {
       try {
-        const repositories = repoManager.resolveIdentifiers(repos);
+        const repositories = repoManager.resolveIdentifiers(repos)
 
         if (repositories.length === 0) {
           return {
             content: [{ type: 'text', text: 'No repositories found.' }],
             isError: true,
-          };
+          }
         }
 
         // Check cache
         const cacheKey = searchCache.generateKey('symbol:enum', {
           name,
-          repos: repositories.map((r) => r.id).sort(),
+          repos: repositories.map(r => r.id).sort(),
           language,
           exportedOnly,
           maxResults,
-        });
+        })
 
         if (config.cacheEnabled) {
-          const cached = searchCache.get(cacheKey);
+          const cached = searchCache.get(cacheKey)
           if (cached) {
             return {
               content: [
@@ -372,7 +375,7 @@ export function registerSymbolTools(
                   text: JSON.stringify(
                     {
                       totalFound: (cached as any[]).length,
-                      enums: (cached as any[]).map((r) => ({
+                      enums: (cached as any[]).map(r => ({
                         name: r.name,
                         repository: r.repositoryAlias || r.repository,
                         file: r.relativePath,
@@ -383,11 +386,11 @@ export function registerSymbolTools(
                       cached: true,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
-            };
+            }
           }
         }
 
@@ -399,11 +402,11 @@ export function registerSymbolTools(
             exportedOnly: exportedOnly ?? false,
             maxResults: maxResults ?? 100,
           },
-          repositories
-        );
+          repositories,
+        )
 
         if (config.cacheEnabled) {
-          searchCache.set(cacheKey, results);
+          searchCache.set(cacheKey, results)
         }
 
         return {
@@ -413,7 +416,7 @@ export function registerSymbolTools(
               text: JSON.stringify(
                 {
                   totalFound: results.length,
-                  enums: results.map((r) => ({
+                  enums: results.map(r => ({
                     name: r.name,
                     repository: r.repositoryAlias || r.repository,
                     file: r.relativePath,
@@ -423,19 +426,20 @@ export function registerSymbolTools(
                   })),
                 },
                 null,
-                2
+                2,
               ),
             },
           ],
-        };
-      } catch (error) {
+        }
+      }
+      catch (error) {
         return {
           content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
           isError: true,
-        };
+        }
       }
-    }
-  );
+    },
+  )
 
   server.tool(
     'find_variables',
@@ -449,26 +453,26 @@ export function registerSymbolTools(
     },
     async ({ name, repos, language, exportedOnly, maxResults }) => {
       try {
-        const repositories = repoManager.resolveIdentifiers(repos);
+        const repositories = repoManager.resolveIdentifiers(repos)
 
         if (repositories.length === 0) {
           return {
             content: [{ type: 'text', text: 'No repositories found.' }],
             isError: true,
-          };
+          }
         }
 
         // Check cache
         const cacheKey = searchCache.generateKey('symbol:variable', {
           name,
-          repos: repositories.map((r) => r.id).sort(),
+          repos: repositories.map(r => r.id).sort(),
           language,
           exportedOnly,
           maxResults,
-        });
+        })
 
         if (config.cacheEnabled) {
-          const cached = searchCache.get(cacheKey);
+          const cached = searchCache.get(cacheKey)
           if (cached) {
             return {
               content: [
@@ -477,7 +481,7 @@ export function registerSymbolTools(
                   text: JSON.stringify(
                     {
                       totalFound: (cached as any[]).length,
-                      variables: (cached as any[]).map((r) => ({
+                      variables: (cached as any[]).map(r => ({
                         name: r.name,
                         repository: r.repositoryAlias || r.repository,
                         file: r.relativePath,
@@ -488,11 +492,11 @@ export function registerSymbolTools(
                       cached: true,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
-            };
+            }
           }
         }
 
@@ -504,11 +508,11 @@ export function registerSymbolTools(
             exportedOnly: exportedOnly ?? false,
             maxResults: maxResults ?? 100,
           },
-          repositories
-        );
+          repositories,
+        )
 
         if (config.cacheEnabled) {
-          searchCache.set(cacheKey, results);
+          searchCache.set(cacheKey, results)
         }
 
         return {
@@ -518,7 +522,7 @@ export function registerSymbolTools(
               text: JSON.stringify(
                 {
                   totalFound: results.length,
-                  variables: results.map((r) => ({
+                  variables: results.map(r => ({
                     name: r.name,
                     repository: r.repositoryAlias || r.repository,
                     file: r.relativePath,
@@ -528,19 +532,20 @@ export function registerSymbolTools(
                   })),
                 },
                 null,
-                2
+                2,
               ),
             },
           ],
-        };
-      } catch (error) {
+        }
+      }
+      catch (error) {
         return {
           content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
           isError: true,
-        };
+        }
       }
-    }
-  );
+    },
+  )
 
   server.tool(
     'find_constants',
@@ -554,26 +559,26 @@ export function registerSymbolTools(
     },
     async ({ name, repos, language, exportedOnly, maxResults }) => {
       try {
-        const repositories = repoManager.resolveIdentifiers(repos);
+        const repositories = repoManager.resolveIdentifiers(repos)
 
         if (repositories.length === 0) {
           return {
             content: [{ type: 'text', text: 'No repositories found.' }],
             isError: true,
-          };
+          }
         }
 
         // Check cache
         const cacheKey = searchCache.generateKey('symbol:constant', {
           name,
-          repos: repositories.map((r) => r.id).sort(),
+          repos: repositories.map(r => r.id).sort(),
           language,
           exportedOnly,
           maxResults,
-        });
+        })
 
         if (config.cacheEnabled) {
-          const cached = searchCache.get(cacheKey);
+          const cached = searchCache.get(cacheKey)
           if (cached) {
             return {
               content: [
@@ -582,7 +587,7 @@ export function registerSymbolTools(
                   text: JSON.stringify(
                     {
                       totalFound: (cached as any[]).length,
-                      constants: (cached as any[]).map((r) => ({
+                      constants: (cached as any[]).map(r => ({
                         name: r.name,
                         repository: r.repositoryAlias || r.repository,
                         file: r.relativePath,
@@ -593,11 +598,11 @@ export function registerSymbolTools(
                       cached: true,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
-            };
+            }
           }
         }
 
@@ -609,11 +614,11 @@ export function registerSymbolTools(
             exportedOnly: exportedOnly ?? false,
             maxResults: maxResults ?? 100,
           },
-          repositories
-        );
+          repositories,
+        )
 
         if (config.cacheEnabled) {
-          searchCache.set(cacheKey, results);
+          searchCache.set(cacheKey, results)
         }
 
         return {
@@ -623,7 +628,7 @@ export function registerSymbolTools(
               text: JSON.stringify(
                 {
                   totalFound: results.length,
-                  constants: results.map((r) => ({
+                  constants: results.map(r => ({
                     name: r.name,
                     repository: r.repositoryAlias || r.repository,
                     file: r.relativePath,
@@ -633,17 +638,18 @@ export function registerSymbolTools(
                   })),
                 },
                 null,
-                2
+                2,
               ),
             },
           ],
-        };
-      } catch (error) {
+        }
+      }
+      catch (error) {
         return {
           content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
           isError: true,
-        };
+        }
       }
-    }
-  );
+    },
+  )
 }

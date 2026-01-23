@@ -1,22 +1,23 @@
-import { homedir } from 'os';
-import { join } from 'path';
-import type { ServerConfig } from './types.js';
-import { logger } from '../utils/logger.js';
+import type { ServerConfig } from './types.js'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
+import { logger } from '../utils/logger.js'
 
 function parseIntSafe(value: string | undefined, defaultValue: number): number {
-  if (!value) return defaultValue;
-  const parsed = parseInt(value, 10);
-  if (isNaN(parsed) || parsed < 0) {
-    logger.warn(`Invalid config value: ${value}, using default: ${defaultValue}`);
-    return defaultValue;
+  if (!value)
+    return defaultValue
+  const parsed = Number.parseInt(value, 10)
+  if (Number.isNaN(parsed) || parsed < 0) {
+    logger.warn(`Invalid config value: ${value}, using default: ${defaultValue}`)
+    return defaultValue
   }
-  return parsed;
+  return parsed
 }
 
 export function loadConfig(): ServerConfig {
-  const configDir =
-    process.env.MCP_REPO_SEARCH_CONFIG_DIR?.replace('~', homedir()) ||
-    join(homedir(), '.config', 'mcp-repo-search');
+  const configDir
+    = process.env.MCP_REPO_SEARCH_CONFIG_DIR?.replace('~', homedir())
+      || join(homedir(), '.config', 'mcp-repo-search')
 
   return {
     configDir,
@@ -29,7 +30,7 @@ export function loadConfig(): ServerConfig {
     logLevel: (['debug', 'info', 'warn', 'error'].includes(process.env.MCP_LOG_LEVEL || '')
       ? process.env.MCP_LOG_LEVEL
       : 'info') as ServerConfig['logLevel'],
-  };
+  }
 }
 
-export * from './types.js';
+export * from './types.js'

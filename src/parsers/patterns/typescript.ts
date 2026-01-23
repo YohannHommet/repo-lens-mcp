@@ -1,4 +1,4 @@
-import type { SymbolKind } from '../../types/symbols.js';
+import type { SymbolKind } from '../../types/symbols.js'
 
 export const TYPESCRIPT_PATTERNS: Record<SymbolKind, string[]> = {
   function: [
@@ -51,7 +51,7 @@ export const TYPESCRIPT_PATTERNS: Record<SymbolKind, string[]> = {
     'const $NAME = $_',
     'export const $NAME = $_',
   ],
-};
+}
 
 export const TYPESCRIPT_ARROW_FUNCTION_PATTERNS = [
   // Basic arrow functions
@@ -75,4 +75,4 @@ export const TYPESCRIPT_ARROW_FUNCTION_PATTERNS = [
   // Async with generics and types
   'const $NAME = async <$_>($$$): $_ => $_',
   'export const $NAME = async <$_>($$$): $_ => $_',
-];
+]

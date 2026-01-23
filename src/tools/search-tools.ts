@@ -1,9 +1,9 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { z } from 'zod';
-import { RepositoryManager } from '../core/repository-manager.js';
-import { TextSearchEngine } from '../search/text-search.js';
-import { SearchCache } from '../utils/cache.js';
-import { ServerConfig } from '../config/types.js';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { ServerConfig } from '../config/types.js'
+import type { RepositoryManager } from '../core/repository-manager.js'
+import type { TextSearchEngine } from '../search/text-search.js'
+import type { SearchCache } from '../utils/cache.js'
+import { z } from 'zod'
 
 /**
  * Validate search pattern to prevent ReDoS (Regular Expression Denial of Service)
@@ -11,14 +11,14 @@ import { ServerConfig } from '../config/types.js';
 function validateSearchPattern(pattern: string): void {
   // Max length check
   if (pattern.length > 200) {
-    throw new Error('Search pattern too long (max 200 characters)');
+    throw new Error('Search pattern too long (max 200 characters)')
   }
 
   // Check for evil regex patterns (simple heuristic)
   // Avoid nested quantifiers like (a+)+
-  const evilRegex = /(\+|\*)\1/;
+  const evilRegex = /(\+|\*)\1/
   if (evilRegex.test(pattern)) {
-    throw new Error('Potential ReDoS pattern detected (nested quantifiers)');
+    throw new Error('Potential ReDoS pattern detected (nested quantifiers)')
   }
 }
 
@@ -27,7 +27,7 @@ export function registerSearchTools(
   repoManager: RepositoryManager,
   textSearch: TextSearchEngine,
   searchCache: SearchCache<any>,
-  config: ServerConfig
+  config: ServerConfig,
 ) {
   server.tool(
     'search_text',
@@ -38,7 +38,7 @@ export function registerSearchTools(
         .array(z.string())
         .optional()
         .describe('Repository identifiers to search (paths or aliases). Searches all if not specified.'),
-      glob: z.string().optional().describe("File glob pattern (e.g., '*.ts', '**/*.{js,jsx}')"),
+      glob: z.string().optional().describe('File glob pattern (e.g., \'*.ts\', \'**/*.{js,jsx}\')'),
       caseSensitive: z.boolean().optional().describe('Case-sensitive search (default: false)'),
       wholeWord: z.boolean().optional().describe('Match whole words only (default: false)'),
       maxResults: z.number().optional().describe('Maximum results (default: 100)'),
@@ -46,29 +46,29 @@ export function registerSearchTools(
     async ({ pattern, repos, glob, caseSensitive, wholeWord, maxResults }) => {
       try {
         // Validate pattern to prevent ReDoS
-        validateSearchPattern(pattern);
+        validateSearchPattern(pattern)
 
-        const repositories = repoManager.resolveIdentifiers(repos);
+        const repositories = repoManager.resolveIdentifiers(repos)
 
         if (repositories.length === 0) {
           return {
             content: [{ type: 'text', text: 'No repositories found. Register repositories first.' }],
             isError: true,
-          };
+          }
         }
 
         // Check cache
         const cacheKey = searchCache.generateKey('text', {
           pattern,
-          repos: repositories.map((r) => r.id).sort(),
+          repos: repositories.map(r => r.id).sort(),
           glob,
           caseSensitive,
           wholeWord,
           maxResults,
-        });
+        })
 
         if (config.cacheEnabled) {
-          const cached = searchCache.get(cacheKey);
+          const cached = searchCache.get(cacheKey)
           if (cached) {
             return {
               content: [
@@ -81,11 +81,11 @@ export function registerSearchTools(
                       cached: true,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
-            };
+            }
           }
         }
 
@@ -97,11 +97,11 @@ export function registerSearchTools(
             wholeWord: wholeWord ?? false,
             maxResults: maxResults ?? 100,
           },
-          repositories
-        );
+          repositories,
+        )
 
         if (config.cacheEnabled) {
-          searchCache.set(cacheKey, results);
+          searchCache.set(cacheKey, results)
         }
 
         return {
@@ -111,7 +111,7 @@ export function registerSearchTools(
               text: JSON.stringify(
                 {
                   totalMatches: results.length,
-                  results: results.map((r) => ({
+                  results: results.map(r => ({
                     repository: r.repositoryAlias || r.repository,
                     file: r.relativePath,
                     line: r.lineNumber,
@@ -120,17 +120,18 @@ export function registerSearchTools(
                   })),
                 },
                 null,
-                2
+                2,
               ),
             },
           ],
-        };
-      } catch (error) {
+        }
+      }
+      catch (error) {
         return {
           content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
           isError: true,
-        };
+        }
       }
-    }
-  );
+    },
+  )
 }

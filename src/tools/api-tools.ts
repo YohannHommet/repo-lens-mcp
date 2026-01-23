@@ -1,16 +1,16 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { z } from 'zod';
-import { RepositoryManager } from '../core/repository-manager.js';
-import { APIRouteSearchEngine } from '../search/api-route-search.js';
-import { SearchCache } from '../utils/cache.js';
-import { ServerConfig } from '../config/types.js';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { ServerConfig } from '../config/types.js'
+import type { RepositoryManager } from '../core/repository-manager.js'
+import type { APIRouteSearchEngine } from '../search/api-route-search.js'
+import type { SearchCache } from '../utils/cache.js'
+import { z } from 'zod'
 
 export function registerApiTools(
   server: McpServer,
   repoManager: RepositoryManager,
   apiRouteSearch: APIRouteSearchEngine,
   searchCache: SearchCache<any>,
-  config: ServerConfig
+  config: ServerConfig,
 ) {
   server.tool(
     'find_api_routes',
@@ -24,26 +24,26 @@ export function registerApiTools(
     },
     async ({ method, pathPattern, repos, framework, maxResults }) => {
       try {
-        const repositories = repoManager.resolveIdentifiers(repos);
+        const repositories = repoManager.resolveIdentifiers(repos)
 
         if (repositories.length === 0) {
           return {
             content: [{ type: 'text', text: 'No repositories found.' }],
             isError: true,
-          };
+          }
         }
 
         // Check cache
         const cacheKey = searchCache.generateKey('api_routes', {
           method,
           pathPattern,
-          repos: repositories.map((r) => r.id).sort(),
+          repos: repositories.map(r => r.id).sort(),
           framework,
           maxResults,
-        });
+        })
 
         if (config.cacheEnabled) {
-          const cached = searchCache.get(cacheKey);
+          const cached = searchCache.get(cacheKey)
           if (cached) {
             return {
               content: [
@@ -52,7 +52,7 @@ export function registerApiTools(
                   text: JSON.stringify(
                     {
                       totalFound: (cached as any[]).length,
-                      routes: (cached as any[]).map((r) => ({
+                      routes: (cached as any[]).map(r => ({
                         method: r.method,
                         path: r.path,
                         handler: r.handler,
@@ -66,11 +66,11 @@ export function registerApiTools(
                       cached: true,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
-            };
+            }
           }
         }
 
@@ -81,11 +81,11 @@ export function registerApiTools(
             framework,
             maxResults: maxResults ?? 100,
           },
-          repositories
-        );
+          repositories,
+        )
 
         if (config.cacheEnabled) {
-          searchCache.set(cacheKey, results);
+          searchCache.set(cacheKey, results)
         }
 
         return {
@@ -95,7 +95,7 @@ export function registerApiTools(
               text: JSON.stringify(
                 {
                   totalFound: results.length,
-                  routes: results.map((r) => ({
+                  routes: results.map(r => ({
                     method: r.method,
                     path: r.path,
                     handler: r.handler,
@@ -108,17 +108,18 @@ export function registerApiTools(
                   })),
                 },
                 null,
-                2
+                2,
               ),
             },
           ],
-        };
-      } catch (error) {
+        }
+      }
+      catch (error) {
         return {
           content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
           isError: true,
-        };
+        }
       }
-    }
-  );
+    },
+  )
 }

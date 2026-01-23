@@ -1,5 +1,5 @@
-import { Lang } from '@ast-grep/napi';
-import { extname } from 'path';
+import { extname } from 'node:path'
+import { Lang } from '@ast-grep/napi'
 
 const EXTENSION_TO_LANG: Record<string, Lang> = {
   '.ts': Lang.TypeScript,
@@ -8,7 +8,7 @@ const EXTENSION_TO_LANG: Record<string, Lang> = {
   '.jsx': Lang.JavaScript,
   '.mjs': Lang.JavaScript,
   '.cjs': Lang.JavaScript,
-};
+}
 
 const EXTENSION_TO_LANG_NAME: Record<string, string> = {
   '.ts': 'typescript',
@@ -17,23 +17,23 @@ const EXTENSION_TO_LANG_NAME: Record<string, string> = {
   '.jsx': 'jsx',
   '.mjs': 'javascript',
   '.cjs': 'javascript',
-};
+}
 
 export function getLangFromFile(filePath: string): Lang | null {
-  const ext = extname(filePath).toLowerCase();
-  return EXTENSION_TO_LANG[ext] || null;
+  const ext = extname(filePath).toLowerCase()
+  return EXTENSION_TO_LANG[ext] || null
 }
 
 export function getLangNameFromFile(filePath: string): string | null {
-  const ext = extname(filePath).toLowerCase();
-  return EXTENSION_TO_LANG_NAME[ext] || null;
+  const ext = extname(filePath).toLowerCase()
+  return EXTENSION_TO_LANG_NAME[ext] || null
 }
 
 export function isSupportedFile(filePath: string): boolean {
-  const ext = extname(filePath).toLowerCase();
-  return ext in EXTENSION_TO_LANG;
+  const ext = extname(filePath).toLowerCase()
+  return ext in EXTENSION_TO_LANG
 }
 
 export function getSupportedExtensions(): string[] {
-  return Object.keys(EXTENSION_TO_LANG);
+  return Object.keys(EXTENSION_TO_LANG)
 }

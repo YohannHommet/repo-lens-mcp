@@ -19,7 +19,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20.x'
+          node-version: 20.x
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install Dependencies
@@ -40,9 +40,9 @@ jobs:
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
           COMMIT_SHORT=$(git rev-parse --short HEAD)
           CANARY_VERSION="$BASE_VERSION-next.$TIMESTAMP.$COMMIT_SHORT"
-          
+
           echo "Publishing $CANARY_VERSION"
-          
+
           npm version $CANARY_VERSION --no-git-tag-version
           npm publish --tag next --access public
         env:

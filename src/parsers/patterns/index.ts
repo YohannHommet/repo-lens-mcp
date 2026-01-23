@@ -1,9 +1,9 @@
-import { TYPESCRIPT_PATTERNS, TYPESCRIPT_ARROW_FUNCTION_PATTERNS } from './typescript.js';
-import type { SymbolKind } from '../../types/symbols.js';
+import type { SymbolKind } from '../../types/symbols.js'
+import { TYPESCRIPT_ARROW_FUNCTION_PATTERNS, TYPESCRIPT_PATTERNS } from './typescript.js'
 
 export interface LanguagePatterns {
-  patterns: Partial<Record<SymbolKind, string[]>>;
-  arrowFunctions?: string[];
+  patterns: Partial<Record<SymbolKind, string[]>>
+  arrowFunctions?: string[]
 }
 
 export const LANGUAGE_PATTERNS: Record<string, LanguagePatterns> = {
@@ -23,5 +23,4 @@ export const LANGUAGE_PATTERNS: Record<string, LanguagePatterns> = {
     patterns: TYPESCRIPT_PATTERNS,
     arrowFunctions: TYPESCRIPT_ARROW_FUNCTION_PATTERNS,
   },
-};
-
+}
