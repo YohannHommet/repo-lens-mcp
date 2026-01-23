@@ -1,109 +1,117 @@
-# MCP Repo Search Server
+# MCP Repo Search Server ⚡️
 
-An MCP (Model Context Protocol) server for Claude Code that enables parsing and searching across multiple local git repositories. Perfect for cross-project context (e.g., frontend app accessing backend API definitions).
+[![Build Status](https://img.shields.io/github/actions/workflow/status/YohannHommet/mcp-repo-search-server/publish-dev.yml?style=flat-square)](https://github.com/YohannHommet/mcp-repo-search-server/actions)
+[![NPM Version](https://img.shields.io/npm/v/mcp-repo-search-server?style=flat-square&color=cb3837)](https://www.npmjs.com/package/mcp-repo-search-server)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-red?style=flat-square)](LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
+[![MCP Ready](https://img.shields.io/badge/MCP-Ready-green?style=flat-square)](https://modelcontextprotocol.io)
 
-## Features
+**Give your Agent X-Ray Vision into your Codebase.**
 
-- **Repository Management**: Register, unregister, and list local git repositories
-- **Text Search**: Fast ripgrep-powered search across all repositories
-- **Symbol Search**: AST-based search for functions, classes, types, and interfaces
-- **File Operations**: Get file contents, list files, search by filename
-- **Cross-Project Context**: Search across multiple repos simultaneously
+> Stop letting your LLM grep blindly. Upgrade to structural code intelligence.
 
-## Installation
+This is a **Model Context Protocol (MCP)** server tailored for serious development workflows. It doesn't just "read files"; it understands project structure, maps entire repositories, and performs AST-based searches to find exactly what you need—instantly.
 
-```bash
-npm install
-npm run build
-```
+---
 
-## Configuration
+## 🚀 Why this server?
 
-Add to your `.mcp.json` in Claude Code:
+Most code search tools are dumb using simple regex. This server uses **[ast-grep](https://ast-grep.github.io/)** (written in Rust) to parse your code into an Abstract Syntax Tree.
+
+*   **Intelligence:** Distinguish between `class User` and `const User`. Find exported functions, not just the word "function".
+*   **Speed:** Powered by `ripgrep` for text and `ast-grep` for symbols. It screams.
+*   **Context:** Map API routes (Express, NestJS, output) to find entry points in seconds.
+*   **Security:** Sandboxed file access with symlink protection. No more `../../etc/passwd` accidents.
+
+---
+
+## 🛠️ Installation
+
+### Option 1: Claude Desktop / VS Code (Recommended)
+
+Add this to your `claude_desktop_config.json` (or VS Code MCP settings):
 
 ```json
 {
   "mcpServers": {
     "repo-search": {
-      "command": "node",
-      "args": ["/home/$USER/mcp-repo-search-server/dist/index.js"],
-      "env": {
-        "MCP_MAX_SEARCH_RESULTS": "500",
-        "MCP_LOG_LEVEL": "info"
-      }
+      "command": "npx",
+      "args": ["-y", "mcp-repo-search-server@latest"]
     }
   }
 }
 ```
 
-## Available Tools
+*Restart Claude, and you're ready to go.*
 
-### Repository Management
+### Option 2: Local Development
 
-| Tool | Description |
-|------|-------------|
-| `register_repository` | Register a local git repo with optional alias and tags |
-| `unregister_repository` | Remove a repository from the search pool |
-| `list_repositories` | List all registered repositories |
-| `get_repository_info` | Get detailed repository metadata |
-| `refresh_repository` | Re-scan a repository to update metadata |
+If you want to contribute or run from source:
 
-### Text Search
-
-| Tool | Description |
-|------|-------------|
-| `search_text` | Search for text pattern across repositories (supports regex, glob filtering) |
-
-### Symbol Search (AST-based)
-
-| Tool | Description |
-|------|-------------|
-| `find_functions` | Find function/method definitions |
-| `find_classes` | Find class definitions |
-| `find_types` | Find type/interface definitions |
-
-### File Operations
-
-| Tool | Description |
-|------|-------------|
-| `get_file` | Retrieve file contents (with optional line range) |
-| `list_files` | List files in a repository path |
-| `search_files` | Find files by name pattern |
-| `get_file_info` | Get file metadata |
-| `get_project_structure` | Get repository structure overview |
-
-## Usage Examples
-
-### Register repositories
-
-```text
-register_repository path="/home/user/projects/backend" alias="backend" tags=["api", "typescript"]
-register_repository path="/home/user/projects/frontend" alias="frontend" tags=["react", "typescript"]
+```bash
+git clone https://github.com/YohannHommet/mcp-repo-search-server.git
+cd mcp-repo-search-server
+npm install
+npm run build
+# Test it
+npx tsx scripts/test-server.ts
 ```
 
-### Search across projects
+---
 
-```text
-search_text pattern="fetchUsers" repos=["frontend", "backend"]
-find_functions name="handle*" repos=["backend"] exportedOnly=true
-find_types name="User" repos=["backend"]
-```
+## ⚡️ Capabilities
 
-### Get file contents
+### 1. Repository Management
+Don't scan your whole hard drive. Register specific projects to keep context clean.
+- `register_repository`: Add a repo to the search index.
+- `list_repositories`: See what's currently active.
 
-```text
-get_file filePath="/home/user/projects/backend/src/routes/users.ts"
-list_files repoIdentifier="backend" glob="*.ts"
-```
+### 2. AST Symbol Search (The Intelligence)
+Stop getting noise in your search results.
+- `find_functions`: Find logic (`function`, `ArrowFunction`, methods).
+- `find_classes`: Locate entities.
+- `find_api_routes`: **Killer Feature.** Instantly maps all API endpoints in Express/NestJS/Fastify apps.
+- `find_types`: TypeScript interfaces and types.
 
-## Environment Variables
+### 3. High-Performance Text Search
+For when you just need to find a string, fast.
+- `search_text`: Validated, secure wrapper around `ripgrep`.
+
+### 4. File Operations
+- `get_file`: Read content with line-range support.
+- `get_file_info`: Metadata only (size, language, last modified).
+
+---
+
+## ⚙️ Configuration
+
+You can tweak the server by passing environment variables in your JSON config:
 
 | Variable | Default | Description |
-|----------|---------|-------------|
-| `MCP_REPO_SEARCH_CONFIG_DIR` | `~/.config/mcp-repo-search` | Configuration directory |
-| `MCP_MAX_SEARCH_RESULTS` | `500` | Maximum search results |
-| `MCP_LOG_LEVEL` | `info` | Log level (debug, info, warn, error) |
+|:---|:---|:---|
+| `MCP_CACHE_ENABLED` | `true` | Keep it `true` unless you like slow searches. |
+| `MCP_LOG_LEVEL` | `info` | Set to `debug` if things go south. |
+| `MCP_SEARCH_TIMEOUT_MS` | `30000` | Max time before killing a search. |
 
-## License
+Example:
+```json
+"env": {
+  "MCP_LOG_LEVEL": "error",
+  "MCP_CACHE_ENABLED": "true"
+}
+```
 
-MIT
+---
+
+## ⚖️ License
+
+**AGPL-3.0**
+
+This software is free to use. However, if you modify it and distribute it (or run it as a network service), you **must** share your source code under the same license.
+**Your code is yours; this server's code must remain open.**
+
+---
+
+<p align="center">
+  Built with ❤️ by Yohann Hommet
+</p>
