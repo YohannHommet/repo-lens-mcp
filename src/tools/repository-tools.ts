@@ -85,27 +85,30 @@ export function registerRepositoryTools(
     async ({ tags }) => {
       try {
         const repos = await repoManager.list({ tags })
+        if (repos.length === 0) {
+          return {
+            content: [{ type: 'text', text: 'No repositories registered.' }],
+          }
+        }
+
+        let output = `## Registered Repositories (${repos.length})\n\n`
+        for (const r of repos) {
+          output += `### ${r.alias || r.id}\n`
+          output += `- **Path**: \`${r.path}\`\n`
+          output += `- **Branch**: \`${r.gitInfo.branch}\`\n`
+          output += `- **Files**: ${r.fileCount}\n`
+          output += `- **Languages**: ${r.languages.join(', ')}\n`
+          if (r.tags && r.tags.length > 0) {
+            output += `- **Tags**: ${r.tags.join(', ')}\n`
+          }
+          output += '\n'
+        }
+
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(
-                {
-                  count: repos.length,
-                  repositories: repos.map(r => ({
-                    id: r.id,
-                    path: r.path,
-                    alias: r.alias,
-                    tags: r.tags,
-                    languages: r.languages,
-                    fileCount: r.fileCount,
-                    branch: r.gitInfo.branch,
-                    lastScanned: r.lastScanned,
-                  })),
-                },
-                null,
-                2,
-              ),
+              text: output.trim(),
             },
           ],
         }

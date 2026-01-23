@@ -4,6 +4,42 @@ import type { RepositoryManager } from '../core/repository-manager.js'
 import type { SymbolSearchEngine } from '../search/symbol-search.js'
 import type { SearchCache } from '../utils/cache.js'
 import { z } from 'zod'
+import { getLanguageForFile } from '../utils/path-utils.js'
+
+/**
+ * Helper to format symbol results as Markdown
+ */
+function formatSymbolResults(results: any[], kind: string, pattern: string | undefined, isCached: boolean): string {
+  if (results.length === 0) {
+    return `No ${kind}s found matching "${pattern || '*'}"`
+  }
+
+  let output = `## Found ${results.length} ${kind}s${pattern ? ` matching "${pattern}"` : ''}${isCached ? ' (cached)' : ''}\n\n`
+
+  // Group by file
+  const grouped = results.reduce((acc: any, r: any) => {
+    const key = `${r.repositoryAlias || r.repository}:${r.relativePath}`
+    if (!acc[key]) {
+      acc[key] = []
+    }
+    acc[key].push(r)
+    return acc
+  }, {})
+
+  for (const [fileKey, matches] of Object.entries(grouped)) {
+    const [repo, path] = fileKey.split(':')
+    const lang = getLanguageForFile(path)
+    output += `### ${repo}:${path}\n`
+    output += `\`\`\`${lang}\n`
+    for (const m of (matches as any[])) {
+      const lineInfo = `L${m.startLine}${m.endLine !== m.startLine ? `-${m.endLine}` : ''}`
+      output += `${lineInfo.padEnd(8)} | ${m.signature || m.name}${m.exported ? ' (exported)' : ''}\n`
+    }
+    output += `\`\`\`\n\n`
+  }
+
+  return output
+}
 
 export function registerSymbolTools(
   server: McpServer,
@@ -49,22 +85,7 @@ export function registerSymbolTools(
               content: [
                 {
                   type: 'text',
-                  text: JSON.stringify(
-                    {
-                      totalFound: (cached as any[]).length,
-                      functions: (cached as any[]).map(r => ({
-                        name: r.name,
-                        repository: r.repositoryAlias || r.repository,
-                        file: r.relativePath,
-                        lines: { start: r.startLine, end: r.endLine },
-                        signature: r.signature,
-                        exported: r.exported,
-                      })),
-                      cached: true,
-                    },
-                    null,
-                    2,
-                  ),
+                  text: formatSymbolResults(cached, 'function', name, true),
                 },
               ],
             }
@@ -90,21 +111,7 @@ export function registerSymbolTools(
           content: [
             {
               type: 'text',
-              text: JSON.stringify(
-                {
-                  totalFound: results.length,
-                  functions: results.map(r => ({
-                    name: r.name,
-                    repository: r.repositoryAlias || r.repository,
-                    file: r.relativePath,
-                    lines: { start: r.startLine, end: r.endLine },
-                    signature: r.signature,
-                    exported: r.exported,
-                  })),
-                },
-                null,
-                2,
-              ),
+              text: formatSymbolResults(results, 'function', name, false),
             },
           ],
         }
@@ -155,22 +162,7 @@ export function registerSymbolTools(
               content: [
                 {
                   type: 'text',
-                  text: JSON.stringify(
-                    {
-                      totalFound: (cached as any[]).length,
-                      classes: (cached as any[]).map(r => ({
-                        name: r.name,
-                        repository: r.repositoryAlias || r.repository,
-                        file: r.relativePath,
-                        lines: { start: r.startLine, end: r.endLine },
-                        signature: r.signature,
-                        exported: r.exported,
-                      })),
-                      cached: true,
-                    },
-                    null,
-                    2,
-                  ),
+                  text: formatSymbolResults(cached, 'class', name, true),
                 },
               ],
             }
@@ -196,21 +188,7 @@ export function registerSymbolTools(
           content: [
             {
               type: 'text',
-              text: JSON.stringify(
-                {
-                  totalFound: results.length,
-                  classes: results.map(r => ({
-                    name: r.name,
-                    repository: r.repositoryAlias || r.repository,
-                    file: r.relativePath,
-                    lines: { start: r.startLine, end: r.endLine },
-                    signature: r.signature,
-                    exported: r.exported,
-                  })),
-                },
-                null,
-                2,
-              ),
+              text: formatSymbolResults(results, 'class', name, false),
             },
           ],
         }
@@ -261,23 +239,7 @@ export function registerSymbolTools(
               content: [
                 {
                   type: 'text',
-                  text: JSON.stringify(
-                    {
-                      totalFound: (cached as any[]).length,
-                      types: (cached as any[]).map(r => ({
-                        name: r.name,
-                        kind: r.kind,
-                        repository: r.repositoryAlias || r.repository,
-                        file: r.relativePath,
-                        lines: { start: r.startLine, end: r.endLine },
-                        signature: r.signature,
-                        exported: r.exported,
-                      })),
-                      cached: true,
-                    },
-                    null,
-                    2,
-                  ),
+                  text: formatSymbolResults(cached, 'type', name, true),
                 },
               ],
             }
@@ -306,22 +268,7 @@ export function registerSymbolTools(
           content: [
             {
               type: 'text',
-              text: JSON.stringify(
-                {
-                  totalFound: results.length,
-                  types: results.map(r => ({
-                    name: r.name,
-                    kind: r.kind,
-                    repository: r.repositoryAlias || r.repository,
-                    file: r.relativePath,
-                    lines: { start: r.startLine, end: r.endLine },
-                    signature: r.signature,
-                    exported: r.exported,
-                  })),
-                },
-                null,
-                2,
-              ),
+              text: formatSymbolResults(results, 'type', name, false),
             },
           ],
         }
@@ -372,22 +319,7 @@ export function registerSymbolTools(
               content: [
                 {
                   type: 'text',
-                  text: JSON.stringify(
-                    {
-                      totalFound: (cached as any[]).length,
-                      enums: (cached as any[]).map(r => ({
-                        name: r.name,
-                        repository: r.repositoryAlias || r.repository,
-                        file: r.relativePath,
-                        lines: { start: r.startLine, end: r.endLine },
-                        signature: r.signature,
-                        exported: r.exported,
-                      })),
-                      cached: true,
-                    },
-                    null,
-                    2,
-                  ),
+                  text: formatSymbolResults(cached, 'enum', name, true),
                 },
               ],
             }
@@ -413,21 +345,7 @@ export function registerSymbolTools(
           content: [
             {
               type: 'text',
-              text: JSON.stringify(
-                {
-                  totalFound: results.length,
-                  enums: results.map(r => ({
-                    name: r.name,
-                    repository: r.repositoryAlias || r.repository,
-                    file: r.relativePath,
-                    lines: { start: r.startLine, end: r.endLine },
-                    signature: r.signature,
-                    exported: r.exported,
-                  })),
-                },
-                null,
-                2,
-              ),
+              text: formatSymbolResults(results, 'enum', name, false),
             },
           ],
         }
@@ -478,22 +396,7 @@ export function registerSymbolTools(
               content: [
                 {
                   type: 'text',
-                  text: JSON.stringify(
-                    {
-                      totalFound: (cached as any[]).length,
-                      variables: (cached as any[]).map(r => ({
-                        name: r.name,
-                        repository: r.repositoryAlias || r.repository,
-                        file: r.relativePath,
-                        lines: { start: r.startLine, end: r.endLine },
-                        signature: r.signature,
-                        exported: r.exported,
-                      })),
-                      cached: true,
-                    },
-                    null,
-                    2,
-                  ),
+                  text: formatSymbolResults(cached, 'variable', name, true),
                 },
               ],
             }
@@ -519,21 +422,7 @@ export function registerSymbolTools(
           content: [
             {
               type: 'text',
-              text: JSON.stringify(
-                {
-                  totalFound: results.length,
-                  variables: results.map(r => ({
-                    name: r.name,
-                    repository: r.repositoryAlias || r.repository,
-                    file: r.relativePath,
-                    lines: { start: r.startLine, end: r.endLine },
-                    signature: r.signature,
-                    exported: r.exported,
-                  })),
-                },
-                null,
-                2,
-              ),
+              text: formatSymbolResults(results, 'variable', name, false),
             },
           ],
         }
@@ -584,22 +473,7 @@ export function registerSymbolTools(
               content: [
                 {
                   type: 'text',
-                  text: JSON.stringify(
-                    {
-                      totalFound: (cached as any[]).length,
-                      constants: (cached as any[]).map(r => ({
-                        name: r.name,
-                        repository: r.repositoryAlias || r.repository,
-                        file: r.relativePath,
-                        lines: { start: r.startLine, end: r.endLine },
-                        signature: r.signature,
-                        exported: r.exported,
-                      })),
-                      cached: true,
-                    },
-                    null,
-                    2,
-                  ),
+                  text: formatSymbolResults(cached, 'constant', name, true),
                 },
               ],
             }
@@ -625,21 +499,7 @@ export function registerSymbolTools(
           content: [
             {
               type: 'text',
-              text: JSON.stringify(
-                {
-                  totalFound: results.length,
-                  constants: results.map(r => ({
-                    name: r.name,
-                    repository: r.repositoryAlias || r.repository,
-                    file: r.relativePath,
-                    lines: { start: r.startLine, end: r.endLine },
-                    signature: r.signature,
-                    exported: r.exported,
-                  })),
-                },
-                null,
-                2,
-              ),
+              text: formatSymbolResults(results, 'constant', name, false),
             },
           ],
         }

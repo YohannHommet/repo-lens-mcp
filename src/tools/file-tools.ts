@@ -2,6 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { RepositoryManager } from '../core/repository-manager.js'
 import type { FileSearchEngine } from '../search/file-search.js'
 import { z } from 'zod'
+import { getLanguageForFile } from '../utils/path-utils.js'
 
 export function registerFileTools(
   server: McpServer,
@@ -27,14 +28,16 @@ export function registerFileTools(
           }
         }
 
-        const { repo } = resolved
+        const { repo, relativePath } = resolved
         const result = await fileSearch.getFile(repo, filePath, startLine, endLine)
+        const language = getLanguageForFile(filePath)
+        const lineInfo = (startLine || endLine) ? ` (lines ${startLine || 1}-${endLine || 'end'})` : ''
 
         return {
           content: [
             {
               type: 'text',
-              text: result.content,
+              text: `### ${repo.alias || repo.id}:${relativePath}${lineInfo}\n\n\`\`\`${language}\n${result.content}\n\`\`\``,
             },
           ],
         }
@@ -72,15 +75,12 @@ export function registerFileTools(
           content: [
             {
               type: 'text',
-              text: JSON.stringify(
-                {
-                  ...info,
-                  repository: repo.alias || repo.id,
-                  relativePath,
-                },
-                null,
-                2,
-              ),
+              text: `## File Information: ${relativePath}\n`
+                + `- **Repository**: ${repo.alias || repo.id}\n`
+                + `- **Size**: ${info.size} bytes\n`
+                + `- **Language**: ${info.language}\n`
+                + `- **Last Modified**: ${info.modified.toLocaleString()}\n`
+                + `- **Absolute Path**: \`${filePath}\``,
             },
           ],
         }

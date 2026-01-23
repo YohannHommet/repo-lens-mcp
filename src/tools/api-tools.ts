@@ -5,6 +5,39 @@ import type { APIRouteSearchEngine } from '../search/api-route-search.js'
 import type { SearchCache } from '../utils/cache.js'
 import { z } from 'zod'
 
+/**
+ * Helper to format API route results as Markdown
+ */
+function formatApiRoutes(results: any[], isCached: boolean): string {
+  if (results.length === 0) {
+    return 'No API routes found.'
+  }
+
+  let output = `## Found ${results.length} API Routes${isCached ? ' (cached)' : ''}\n\n`
+
+  // Group by repository
+  const grouped = results.reduce((acc: any, r: any) => {
+    const key = r.repositoryAlias || r.repository
+    if (!acc[key]) {
+      acc[key] = []
+    }
+    acc[key].push(r)
+    return acc
+  }, {})
+
+  for (const [repo, routes] of Object.entries(grouped)) {
+    output += `### Repository: ${repo}\n`
+    output += '| Method | Path | Framework | File |\n'
+    output += '|:---|:---|:---|:---|\n'
+    for (const r of (routes as any[])) {
+      output += `| **${r.method}** | \`${r.path}\` | ${r.framework} | \`${r.relativePath}\`:L${r.lineNumber} |\n`
+    }
+    output += '\n'
+  }
+
+  return output
+}
+
 export function registerApiTools(
   server: McpServer,
   repoManager: RepositoryManager,
@@ -49,25 +82,7 @@ export function registerApiTools(
               content: [
                 {
                   type: 'text',
-                  text: JSON.stringify(
-                    {
-                      totalFound: (cached as any[]).length,
-                      routes: (cached as any[]).map(r => ({
-                        method: r.method,
-                        path: r.path,
-                        handler: r.handler,
-                        framework: r.framework,
-                        repository: r.repositoryAlias || r.repository,
-                        file: r.relativePath,
-                        line: r.lineNumber,
-                        parameters: r.parameters,
-                        middleware: r.middleware,
-                      })),
-                      cached: true,
-                    },
-                    null,
-                    2,
-                  ),
+                  text: formatApiRoutes(cached as any[], true),
                 },
               ],
             }
@@ -92,24 +107,7 @@ export function registerApiTools(
           content: [
             {
               type: 'text',
-              text: JSON.stringify(
-                {
-                  totalFound: results.length,
-                  routes: results.map(r => ({
-                    method: r.method,
-                    path: r.path,
-                    handler: r.handler,
-                    framework: r.framework,
-                    repository: r.repositoryAlias || r.repository,
-                    file: r.relativePath,
-                    line: r.lineNumber,
-                    parameters: r.parameters,
-                    middleware: r.middleware,
-                  })),
-                },
-                null,
-                2,
-              ),
+              text: formatApiRoutes(results, false),
             },
           ],
         }

@@ -4,6 +4,42 @@ import type { RepositoryManager } from '../core/repository-manager.js'
 import type { TextSearchEngine } from '../search/text-search.js'
 import type { SearchCache } from '../utils/cache.js'
 import { z } from 'zod'
+import { getLanguageForFile } from '../utils/path-utils.js'
+
+/**
+ * Helper to format search results as Markdown
+ */
+function formatSearchResults(results: any[], pattern: string, isCached: boolean): string {
+  if (results.length === 0) {
+    return `No matches found for "${pattern}"`
+  }
+
+  let output = `## Search Results for "${pattern}"${isCached ? ' (cached)' : ''}\n`
+  output += `Found ${results.length} matches across ${new Set(results.map(r => r.repositoryAlias || r.repository)).size} repositories.\n\n`
+
+  // Group results by file
+  const grouped = results.reduce((acc: any, r: any) => {
+    const key = `${r.repositoryAlias || r.repository}:${r.relativePath}`
+    if (!acc[key]) {
+      acc[key] = []
+    }
+    acc[key].push(r)
+    return acc
+  }, {})
+
+  for (const [fileKey, matches] of Object.entries(grouped)) {
+    const [repo, path] = fileKey.split(':')
+    const lang = getLanguageForFile(path)
+    output += `### ${repo}:${path}\n`
+    output += `\`\`\`${lang}\n`
+    for (const m of (matches as any[])) {
+      output += `${String(m.lineNumber).padStart(4)}: ${m.lineContent}\n`
+    }
+    output += `\`\`\`\n\n`
+  }
+
+  return output
+}
 
 /**
  * Validate search pattern to prevent ReDoS (Regular Expression Denial of Service)
@@ -70,19 +106,12 @@ export function registerSearchTools(
         if (config.cacheEnabled) {
           const cached = searchCache.get(cacheKey)
           if (cached) {
+            const results = cached as any[]
             return {
               content: [
                 {
                   type: 'text',
-                  text: JSON.stringify(
-                    {
-                      totalFound: (cached as any[]).length,
-                      results: cached,
-                      cached: true,
-                    },
-                    null,
-                    2,
-                  ),
+                  text: formatSearchResults(results, pattern, true),
                 },
               ],
             }
@@ -108,20 +137,7 @@ export function registerSearchTools(
           content: [
             {
               type: 'text',
-              text: JSON.stringify(
-                {
-                  totalMatches: results.length,
-                  results: results.map(r => ({
-                    repository: r.repositoryAlias || r.repository,
-                    file: r.relativePath,
-                    line: r.lineNumber,
-                    column: r.columnNumber,
-                    content: r.lineContent,
-                  })),
-                },
-                null,
-                2,
-              ),
+              text: formatSearchResults(results, pattern, false),
             },
           ],
         }
