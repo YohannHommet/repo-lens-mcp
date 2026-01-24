@@ -1,6 +1,6 @@
 <div align="center">
 
-# MCP Repo Search Server ⚡️
+# Repo Lens MCP Server
 
 **Give your Agent X-Ray Vision into your Codebase.**
 
