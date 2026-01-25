@@ -8,7 +8,7 @@
   "homepage": "https://github.com/YohannHommet/repo-lens-mcp#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/YohannHommet/repo-lens-mcp.git"
+    "url": "git+https://github.com/YohannHommet/repo-lens-mcp.git"
   },
   "bugs": {
     "url": "https://github.com/YohannHommet/repo-lens-mcp/issues"
