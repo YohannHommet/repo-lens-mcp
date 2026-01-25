@@ -2,10 +2,10 @@
 
 # Repo Lens MCP Server
 
-**Give your Agent X-Ray Vision into your Codebase.**
+**Your codebase, illuminated.**
 
-[![NPM Version](https://img.shields.io/npm/v/mcp-repo-search-server?style=for-the-badge&logo=npm&color=CB3837)](https://www.npmjs.com/package/mcp-repo-search-server)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/YohannHommet/mcp-repo-search-server/cd-main.yml?style=for-the-badge&logo=github-actions&logoColor=white)](https://github.com/YohannHommet/mcp-repo-search-server/actions)
+[![NPM Version](https://img.shields.io/npm/v/repo-lens-mcp?style=for-the-badge&logo=npm&color=CB3837)](https://www.npmjs.com/package/repo-lens-mcp)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/YohannHommet/repo-lens-mcp/cd-main.yml?style=for-the-badge&logo=github-actions&logoColor=white)](https://github.com/YohannHommet/repo-lens-mcp/actions)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-red?style=for-the-badge&logo=opensourceinitiative&logoColor=white)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![MCP Ready](https://img.shields.io/badge/MCP-Ready-green?style=for-the-badge&logo=modelcontextprotocol&logoColor=white)](https://modelcontextprotocol.io)
@@ -25,7 +25,7 @@ This is a **Model Context Protocol (MCP)** server tailored for serious developme
 ## Quickstart
 
 ```bash
-npx mcp-repo-search-server
+npx repo-lens-mcp
 ```
 
 ---
@@ -41,6 +41,21 @@ Most code search tools are dumb using simple regex. This server uses **[ast-grep
 
 ---
 
+## Roadmap
+
+We have big plans for the future of structural code intelligence.
+
+- **Phase 1 (Current):** Stability, Multi-repo, Basic AST.
+- **Phase 2 (Q1 2026):** Cross-file references, Smart Context Summaries, Live Indexing.
+- **Phase 3 (Q2 2026):** **Semantic Search (Local Embeddings)**, Hybrid Ranking.
+- **Phase 2.5 (Q1 2026):** Python support (symbol search + Flask/Django routes).
+- **Phase 3.5 (Q2 2026):** Go & Rust support.
+- **Phase 4.5 (Q3 2026):** Java & C# support.
+
+[👉 Check out the full ROADMAP.md](ROADMAP.md) • [🌐 Language Expansion Plan](docs/LANGUAGE_EXPANSION.md)
+
+---
+
 ## Installation
 
 ### Option 1: Claude Desktop / VS Code (Recommended)
@@ -50,9 +65,9 @@ Add this to your `claude_desktop_config.json` (or VS Code MCP settings):
 ```json
 {
   "mcpServers": {
-    "repo-search": {
+    "repo-lens": {
       "command": "npx",
-      "args": ["-y", "mcp-repo-search-server"]
+      "args": ["-y", "repo-lens-mcp"]
     }
   }
 }
@@ -65,8 +80,8 @@ Add this to your `claude_desktop_config.json` (or VS Code MCP settings):
 If you want to contribute or run from source:
 
 ```bash
-git clone https://github.com/YohannHommet/mcp-repo-search-server.git
-cd mcp-repo-search-server
+git clone https://github.com/YohannHommet/repo-lens-mcp.git
+cd repo-lens-mcp
 npm install
 npm run build
 # Test it
