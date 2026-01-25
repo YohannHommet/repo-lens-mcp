@@ -1,17 +1,17 @@
 {
-  "name": "mcp-repo-search-server",
+  "name": "repo-lens-mcp",
   "type": "module",
-  "version": "1.0.0",
-  "description": "MCP server for multi-repository code search and context extraction",
+  "version": "0.1.2",
+  "description": "MCP server for intelligent repository search and code analysis",
   "author": "Yohann Hommet",
   "license": "AGPL-3.0-only",
-  "homepage": "https://github.com/YohannHommet/mcp-repo-search-server#readme",
+  "homepage": "https://github.com/YohannHommet/repo-lens-mcp#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/YohannHommet/mcp-repo-search-server.git"
+    "url": "https://github.com/YohannHommet/repo-lens-mcp.git"
   },
   "bugs": {
-    "url": "https://github.com/YohannHommet/mcp-repo-search-server/issues"
+    "url": "https://github.com/YohannHommet/repo-lens-mcp/issues"
   },
   "keywords": [
     "mcp",
@@ -22,12 +22,12 @@
     "ast",
     "ast-grep",
     "ripgrep",
-    "context-extraction",
+    "repo-lens-mcp",
     "developer-tools"
   ],
   "main": "dist/index.js",
   "bin": {
-    "mcp-repo-search": "dist/index.js"
+    "repo-lens-mcp": "dist/index.js"
   },
   "files": [
     "LICENSE",
@@ -37,6 +37,7 @@
   "engines": {
     "node": ">=18.0.0"
   },
+  "deprecated": "This package is renamed to repo-lens-mcp. Please install repo-lens-mcp instead. See MIGRATION_NOTICE.md for details.",
   "publishConfig": {
     "access": "public"
   },
