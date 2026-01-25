@@ -37,7 +37,6 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "deprecated": "This package is renamed to repo-lens-mcp. Please install repo-lens-mcp instead. See MIGRATION_NOTICE.md for details.",
   "publishConfig": {
     "access": "public"
   },
