@@ -1,7 +1,7 @@
 {
   "name": "repo-lens-mcp",
   "type": "module",
-  "version": "0.1.2",
+  "version": "0.1.0-alpha",
   "description": "MCP server for intelligent repository search and code analysis",
   "author": "Yohann Hommet",
   "license": "AGPL-3.0-only",
