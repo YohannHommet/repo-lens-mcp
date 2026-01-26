@@ -5,7 +5,7 @@
 **Your codebase, illuminated.**
 
 [![NPM Version](https://img.shields.io/npm/v/repo-lens-mcp?style=for-the-badge&logo=npm&color=CB3837)](https://www.npmjs.com/package/repo-lens-mcp)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/YohannHommet/repo-lens-mcp/cd-main.yml?style=for-the-badge&logo=github-actions&logoColor=white)](https://github.com/YohannHommet/repo-lens-mcp/actions)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/YohannHommet/repo-lens-mcp/publish.yml?style=for-the-badge&logo=github-actions&logoColor=white)](https://github.com/YohannHommet/repo-lens-mcp/actions)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-red?style=for-the-badge&logo=opensourceinitiative&logoColor=white)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![MCP Ready](https://img.shields.io/badge/MCP-Ready-green?style=for-the-badge&logo=modelcontextprotocol&logoColor=white)](https://modelcontextprotocol.io)
