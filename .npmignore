@@ -26,6 +26,12 @@ coverage/
 .nyc_output/
 **/*.test.js
 **/*.test.d.ts
+**/*.spec.js
+**/*.spec.d.ts
+**/*.spec.js.map
+**/*.spec.d.ts.map
+**/*.test.js.map
+**/*.test.d.ts.map
 
 # Documentation (internal only)
 docs/
