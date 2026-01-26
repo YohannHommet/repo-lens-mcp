@@ -13,16 +13,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
-      
+          cache: npm
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Run quality checks
         run: npm run ci
 
@@ -31,24 +31,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
-      
+          cache: npm
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Build TypeScript
         run: npm run build
-      
+
       - name: Verify build output
         run: |
           test -f dist/index.js || (echo "Build failed: dist/index.js not found" && exit 1)
           echo "✓ Build verified successfully"
-      
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -65,28 +65,28 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          cache: npm
           registry-url: https://registry.npmjs.org/
-      
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
           name: dist
           path: dist/
-      
+
       - name: Publish to npm
         run: |
           VERSION=$(node -p "require('./package.json').version")
           echo "📋 Package version: $VERSION"
-          
+
           # Check if version contains alpha/beta/rc (prerelease identifiers)
           if [[ "$VERSION" =~ (alpha|beta|rc) ]] || [[ "${{ github.event.release.prerelease }}" == "true" ]]; then
             echo "📦 Publishing as prerelease (alpha tag)..."
@@ -97,7 +97,7 @@ jobs:
           fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      
+
       - name: Summary
         run: |
           VERSION=$(node -p "require('./package.json').version")
