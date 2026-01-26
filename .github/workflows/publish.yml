@@ -7,6 +7,12 @@ on:
     branches: [main]
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Dry run (do not publish)
+        type: boolean
+        default: false
 
 jobs:
   quality:
@@ -59,7 +65,7 @@ jobs:
   publish:
     needs: build
     runs-on: ubuntu-latest
-    if: github.event_name == 'release'
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     permissions:
       contents: read
       id-token: write
