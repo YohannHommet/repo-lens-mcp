@@ -5,6 +5,10 @@
   "description": "MCP server for intelligent repository search and code analysis",
   "author": "Yohann Hommet <yohann.hommet@outlook.fr>",
   "license": "AGPL-3.0-only",
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/YohannHommet"
+  },
   "homepage": "https://github.com/YohannHommet/repo-lens-mcp#readme",
   "repository": {
     "type": "git",
@@ -12,10 +16,6 @@
   },
   "bugs": {
     "url": "https://github.com/YohannHommet/repo-lens-mcp/issues"
-  },
-  "funding": {
-    "type": "github",
-    "url": "https://github.com/sponsors/YohannHommet"
   },
   "keywords": [
     "mcp",
@@ -35,24 +35,22 @@
     "code-analysis",
     "symbol-search"
   ],
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
   },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "bin": {
     "repo-lens-mcp": "dist/index.js"
   },
   "files": [
-    "dist",
-    "!dist/**/*.test.js",
-    "!dist/**/*.test.d.ts",
-    "README.md",
+    "CHANGELOG.md",
     "LICENSE",
-    "CHANGELOG.md"
+    "README.md",
+    "dist"
   ],
   "engines": {
     "node": ">=18.0.0"
