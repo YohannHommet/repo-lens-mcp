@@ -1,0 +1,38 @@
+# Source files (only publish compiled dist/)
+src/
+tsconfig.json
+
+# Development
+.env
+.env.example
+*.log
+*.tsbuildinfo
+eslint.config.js
+vitest.config.ts
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+coverage/
+.nyc_output/
+**/*.test.js
+**/*.test.d.ts
+
+# Documentation (internal only)
+docs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# GitHub
+.github/
