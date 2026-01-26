@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.1.0-alpha",
   "description": "MCP server for intelligent repository search and code analysis",
-  "author": "Yohann Hommet",
+  "author": "Yohann Hommet <yohann.hommet@outlook.fr>",
   "license": "AGPL-3.0-only",
   "homepage": "https://github.com/YohannHommet/repo-lens-mcp#readme",
   "repository": {
@@ -12,6 +12,10 @@
   },
   "bugs": {
     "url": "https://github.com/YohannHommet/repo-lens-mcp/issues"
+  },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/YohannHommet"
   },
   "keywords": [
     "mcp",
@@ -23,30 +27,50 @@
     "ast-grep",
     "ripgrep",
     "repo-lens-mcp",
-    "developer-tools"
+    "developer-tools",
+    "llm",
+    "openai",
+    "anthropic",
+    "model-context-protocol",
+    "code-analysis",
+    "symbol-search"
   ],
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "bin": {
     "repo-lens-mcp": "dist/index.js"
   },
   "files": [
-    "LICENSE",
+    "dist",
+    "!dist/**/*.test.js",
+    "!dist/**/*.test.d.ts",
     "README.md",
-    "dist"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "engines": {
     "node": ">=18.0.0"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
     "test": "vitest",
+    "test:coverage": "vitest run --coverage",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit",
+    "ci": "npm run test:coverage && npm run typecheck && npm run lint",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
@@ -62,6 +86,7 @@
   "devDependencies": {
     "@antfu/eslint-config": "^7.2.0",
     "@types/node": "^25.0.10",
+    "@vitest/coverage-v8": "^4.0.18",
     "eslint": "^9.39.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
