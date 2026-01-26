@@ -89,6 +89,7 @@ jobs:
           path: dist/
 
       - name: Publish to npm
+        if: github.event.inputs.dry_run != 'true'
         run: |
           VERSION=$(node -p "require('./package.json').version")
           echo "📋 Package version: $VERSION"
