@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-01-27
+
+### Stabilized
+- **Repository Tools**: Renamed `list_repositories` to `list_registered_repositories` to force platform re-indexing and changed `tags` parameter to a comma-separated string to prevent input loops in MCP clients.
+- **Search Tools**: Converted all array parameters (e.g., `repos`, `tags`) to comma-separated strings across `search_text`, `find_api_routes`, and all symbol search tools.
+- **Observability**: Added debug logging to all tool entry points for better tracing.
+- **Parsing**: Introduced proper string splitting utility to handle various input formats robustly.
+
 ## [0.1.1-alpha] - 2026-01-26
 
 ### Fixed
