@@ -2,6 +2,8 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { RepositoryManager } from '../core/repository-manager.js'
 import type { SearchCache } from '../utils/cache.js'
 import { z } from 'zod'
+import { logger } from '../utils/logger.js'
+import { splitCommaSeparated } from '../utils/string-utils.js'
 
 export function registerRepositoryTools(
   server: McpServer,
@@ -14,10 +16,12 @@ export function registerRepositoryTools(
     {
       path: z.string().describe('Absolute path to the git repository'),
       alias: z.string().optional().describe('User-friendly name for the repository'),
-      tags: z.array(z.string()).optional().describe('Tags for filtering (e.g., [\'frontend\', \'typescript\'])'),
+      tags: z.string().optional().describe('Tags for filtering (comma-separated, e.g. "frontend,typescript")'),
     },
-    async ({ path, alias, tags }) => {
+    async ({ path, alias, tags: tagsString }) => {
+      logger.debug('Tool register_repository called', { path, alias, tags: tagsString })
       try {
+        const tags = splitCommaSeparated(tagsString) || []
         const repo = await repoManager.register(path, { alias, tags })
         searchCache.clear()
         return {
@@ -77,13 +81,15 @@ export function registerRepositoryTools(
   )
 
   server.tool(
-    'list_repositories',
-    'List all registered repositories',
+    'list_registered_repositories',
+    'List all registered repositories in the search index',
     {
-      tags: z.array(z.string()).optional().describe('Filter by tags'),
+      tagFilter: z.string().optional().describe('Filter by tags (comma-separated, e.g. "frontend,typescript")'),
     },
-    async ({ tags }) => {
+    async ({ tagFilter }) => {
+      logger.debug('Tool list_registered_repositories called', { tagFilter })
       try {
+        const tags = splitCommaSeparated(tagFilter)
         const repos = await repoManager.list({ tags })
         if (repos.length === 0) {
           return {

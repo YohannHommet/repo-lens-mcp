@@ -4,7 +4,9 @@ import type { RepositoryManager } from '../core/repository-manager.js'
 import type { SymbolSearchEngine } from '../search/symbol-search.js'
 import type { SearchCache } from '../utils/cache.js'
 import { z } from 'zod'
+import { logger } from '../utils/logger.js'
 import { getLanguageForFile } from '../utils/path-utils.js'
+import { splitCommaSeparated } from '../utils/string-utils.js'
 
 /**
  * Helper to format symbol results as Markdown
@@ -53,13 +55,15 @@ export function registerSymbolTools(
     'Find function/method definitions across repositories using AST analysis',
     {
       name: z.string().optional().describe('Function name pattern (supports wildcards like \'handle*\')'),
-      repos: z.array(z.string()).optional().describe('Repository identifiers to search'),
+      repoFilter: z.string().optional().describe('Repository aliases or paths to search (comma-separated)'),
       language: z.string().optional().describe('Filter by language (typescript, javascript)'),
       exportedOnly: z.boolean().optional().describe('Only return exported functions (default: false)'),
       maxResults: z.number().optional().describe('Maximum results (default: 100)'),
     },
-    async ({ name, repos, language, exportedOnly, maxResults }) => {
+    async ({ name, repoFilter, language, exportedOnly, maxResults }) => {
+      logger.debug('Tool find_functions called', { name, repoFilter, language })
       try {
+        const repos = splitCommaSeparated(repoFilter)
         const repositories = repoManager.resolveIdentifiers(repos)
 
         if (repositories.length === 0) {
@@ -130,13 +134,15 @@ export function registerSymbolTools(
     'Find class definitions across repositories using AST analysis',
     {
       name: z.string().optional().describe('Class name pattern'),
-      repos: z.array(z.string()).optional().describe('Repository identifiers to search'),
+      repoFilter: z.string().optional().describe('Repository aliases or paths to search (comma-separated)'),
       language: z.string().optional().describe('Filter by language'),
       exportedOnly: z.boolean().optional().describe('Only return exported classes'),
       maxResults: z.number().optional().describe('Maximum results'),
     },
-    async ({ name, repos, language, exportedOnly, maxResults }) => {
+    async ({ name, repoFilter, language, exportedOnly, maxResults }) => {
+      logger.debug('Tool find_classes called', { name, repoFilter, language })
       try {
+        const repos = splitCommaSeparated(repoFilter)
         const repositories = repoManager.resolveIdentifiers(repos)
 
         if (repositories.length === 0) {
@@ -207,13 +213,15 @@ export function registerSymbolTools(
     'Find type/interface definitions across repositories using AST analysis',
     {
       name: z.string().optional().describe('Type name pattern'),
-      repos: z.array(z.string()).optional().describe('Repository identifiers to search'),
+      repoFilter: z.string().optional().describe('Repository aliases or paths to search (comma-separated)'),
       language: z.string().optional().describe('Filter by language'),
       exportedOnly: z.boolean().optional().describe('Only return exported types'),
       maxResults: z.number().optional().describe('Maximum results'),
     },
-    async ({ name, repos, language, exportedOnly, maxResults }) => {
+    async ({ name, repoFilter, language, exportedOnly, maxResults }) => {
+      logger.debug('Tool find_types called', { name, repoFilter, language })
       try {
+        const repos = splitCommaSeparated(repoFilter)
         const repositories = repoManager.resolveIdentifiers(repos)
 
         if (repositories.length === 0) {
@@ -287,13 +295,15 @@ export function registerSymbolTools(
     'Find enum definitions across repositories using AST analysis',
     {
       name: z.string().optional().describe('Enum name pattern'),
-      repos: z.array(z.string()).optional().describe('Repository identifiers to search'),
+      repoFilter: z.string().optional().describe('Repository aliases or paths to search (comma-separated)'),
       language: z.string().optional().describe('Filter by language'),
       exportedOnly: z.boolean().optional().describe('Only return exported enums'),
       maxResults: z.number().optional().describe('Maximum results'),
     },
-    async ({ name, repos, language, exportedOnly, maxResults }) => {
+    async ({ name, repoFilter, language, exportedOnly, maxResults }) => {
+      logger.debug('Tool find_enums called', { name, repoFilter, language })
       try {
+        const repos = splitCommaSeparated(repoFilter)
         const repositories = repoManager.resolveIdentifiers(repos)
 
         if (repositories.length === 0) {
@@ -364,13 +374,15 @@ export function registerSymbolTools(
     'Find variable declarations across repositories using AST analysis',
     {
       name: z.string().optional().describe('Variable name pattern'),
-      repos: z.array(z.string()).optional().describe('Repository identifiers to search'),
+      repoFilter: z.string().optional().describe('Repository aliases or paths to search (comma-separated)'),
       language: z.string().optional().describe('Filter by language'),
       exportedOnly: z.boolean().optional().describe('Only return exported variables'),
       maxResults: z.number().optional().describe('Maximum results'),
     },
-    async ({ name, repos, language, exportedOnly, maxResults }) => {
+    async ({ name, repoFilter, language, exportedOnly, maxResults }) => {
+      logger.debug('Tool find_variables called', { name, repoFilter, language })
       try {
+        const repos = splitCommaSeparated(repoFilter)
         const repositories = repoManager.resolveIdentifiers(repos)
 
         if (repositories.length === 0) {
@@ -441,13 +453,15 @@ export function registerSymbolTools(
     'Find constant declarations across repositories using AST analysis',
     {
       name: z.string().optional().describe('Constant name pattern'),
-      repos: z.array(z.string()).optional().describe('Repository identifiers to search'),
+      repoFilter: z.string().optional().describe('Repository aliases or paths to search (comma-separated)'),
       language: z.string().optional().describe('Filter by language'),
       exportedOnly: z.boolean().optional().describe('Only return exported constants'),
       maxResults: z.number().optional().describe('Maximum results'),
     },
-    async ({ name, repos, language, exportedOnly, maxResults }) => {
+    async ({ name, repoFilter, language, exportedOnly, maxResults }) => {
+      logger.debug('Tool find_constants called', { name, repoFilter, language })
       try {
+        const repos = splitCommaSeparated(repoFilter)
         const repositories = repoManager.resolveIdentifiers(repos)
 
         if (repositories.length === 0) {

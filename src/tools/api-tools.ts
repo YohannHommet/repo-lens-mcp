@@ -4,6 +4,8 @@ import type { RepositoryManager } from '../core/repository-manager.js'
 import type { APIRouteSearchEngine } from '../search/api-route-search.js'
 import type { SearchCache } from '../utils/cache.js'
 import { z } from 'zod'
+import { logger } from '../utils/logger.js'
+import { splitCommaSeparated } from '../utils/string-utils.js'
 
 /**
  * Helper to format API route results as Markdown
@@ -51,12 +53,14 @@ export function registerApiTools(
     {
       method: z.string().optional().describe('HTTP method (GET, POST, PUT, DELETE, PATCH)'),
       pathPattern: z.string().optional().describe('Filter by path pattern (e.g., "/users", "/api")'),
-      repos: z.array(z.string()).optional().describe('Repository identifiers to search'),
+      repoFilter: z.string().optional().describe('Repository aliases or paths to search (comma-separated)'),
       framework: z.string().optional().describe('Filter by framework (express, fastify, nestjs)'),
       maxResults: z.number().optional().describe('Maximum results'),
     },
-    async ({ method, pathPattern, repos, framework, maxResults }) => {
+    async ({ method, pathPattern, repoFilter, framework, maxResults }) => {
+      logger.debug('Tool find_api_routes called', { method, pathPattern, repoFilter, framework })
       try {
+        const repos = splitCommaSeparated(repoFilter)
         const repositories = repoManager.resolveIdentifiers(repos)
 
         if (repositories.length === 0) {

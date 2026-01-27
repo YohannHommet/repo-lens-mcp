@@ -4,7 +4,9 @@ import type { RepositoryManager } from '../core/repository-manager.js'
 import type { TextSearchEngine } from '../search/text-search.js'
 import type { SearchCache } from '../utils/cache.js'
 import { z } from 'zod'
+import { logger } from '../utils/logger.js'
 import { getLanguageForFile } from '../utils/path-utils.js'
+import { splitCommaSeparated } from '../utils/string-utils.js'
 
 /**
  * Helper to format search results as Markdown
@@ -70,20 +72,22 @@ export function registerSearchTools(
     'Search for text pattern across all registered repositories using ripgrep',
     {
       pattern: z.string().describe('Search pattern (supports regex)'),
-      repos: z
-        .array(z.string())
+      repoFilter: z
+        .string()
         .optional()
-        .describe('Repository identifiers to search (paths or aliases). Searches all if not specified.'),
+        .describe('Repository aliases or paths to search (comma-separated). Searches all if not specified.'),
       glob: z.string().optional().describe('File glob pattern (e.g., \'*.ts\', \'**/*.{js,jsx}\')'),
       caseSensitive: z.boolean().optional().describe('Case-sensitive search (default: false)'),
       wholeWord: z.boolean().optional().describe('Match whole words only (default: false)'),
       maxResults: z.number().optional().describe('Maximum results (default: 100)'),
     },
-    async ({ pattern, repos, glob, caseSensitive, wholeWord, maxResults }) => {
+    async ({ pattern, repoFilter, glob, caseSensitive, wholeWord, maxResults }) => {
+      logger.debug('Tool search_text called', { pattern, repoFilter, glob })
       try {
         // Validate pattern to prevent ReDoS
         validateSearchPattern(pattern)
 
+        const repos = splitCommaSeparated(repoFilter)
         const repositories = repoManager.resolveIdentifiers(repos)
 
         if (repositories.length === 0) {
