@@ -105,4 +105,7 @@ See [docs/MIGRATION.md](docs/MIGRATION.md) for detailed migration instructions.
 - Symlink traversal protection enabled
 - Input validation on all user-provided paths
 
+[0.2.0]: https://github.com/YohannHommet/repo-lens-mcp/releases/tag/v0.2.0
+[0.1.2]: https://github.com/YohannHommet/repo-lens-mcp/releases/tag/v0.1.2
+[0.1.1-alpha]: https://github.com/YohannHommet/repo-lens-mcp/releases/tag/v0.1.1-alpha
 [0.1.0-alpha]: https://github.com/YohannHommet/repo-lens-mcp/releases/tag/v0.1.0-alpha
