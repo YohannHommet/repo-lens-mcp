@@ -89,7 +89,7 @@ export function registerRepositoryTools(
 
         // Get details of a specific repository
         if (identifier) {
-          const repo = await repoManager.get(identifier)
+          const repo = repoManager.get(identifier)
           if (!repo) {
             return {
               content: [{ type: 'text', text: 'Repository not found' }],
@@ -108,7 +108,7 @@ export function registerRepositoryTools(
 
         // List all repositories (optionally filtered by tags)
         const tags = splitCommaSeparated(tagFilter)
-        const repos = await repoManager.list({ tags })
+        const repos = repoManager.list({ tags })
         if (repos.length === 0) {
           return {
             content: [{ type: 'text', text: 'No repositories registered.' }],

@@ -44,7 +44,7 @@ async function main(): Promise<void> {
 
   logger.info('MCP Repo Search Server started', {
     configDir: config.configDir,
-    repositoryCount: (await repoManager.list()).length,
+    repositoryCount: repoManager.list().length,
   })
 }
 

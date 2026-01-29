@@ -114,7 +114,7 @@ export class RepositoryManager {
     logger.info('Repository unregistered', { id: repo.id })
   }
 
-  async list(filter?: RepositoryFilter): Promise<Repository[]> {
+  list(filter?: RepositoryFilter): Repository[] {
     let repos = Array.from(this.repositories.values())
 
     if (filter?.tags && filter.tags.length > 0) {
@@ -124,7 +124,7 @@ export class RepositoryManager {
     return repos
   }
 
-  async get(identifier: string): Promise<Repository | null> {
+  get(identifier: string): Repository | null {
     return this.resolveIdentifier(identifier)
   }
 

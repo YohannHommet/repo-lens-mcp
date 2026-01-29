@@ -11,6 +11,7 @@ import { getRelativePath } from '../utils/path-utils.js'
 
 const API_ROUTE_IGNORE_PATTERNS = [
   '**/node_modules/**',
+  '**/vendor/**',
   '**/dist/**',
   '**/build/**',
   '**/*.test.*',
@@ -18,30 +19,29 @@ const API_ROUTE_IGNORE_PATTERNS = [
   '**/*.min.js',
 ]
 
+const FILE_CONCURRENCY = 8
+
 export class APIRouteSearchEngine {
   /**
    * Search for API route definitions across multiple repositories
    */
   async search(options: APIRouteSearchOptions, repositories: Repository[]): Promise<APIRoute[]> {
-    const allResults: APIRoute[] = []
-    const maxResults = options.maxResults || 500
+    const maxResults = options.maxResults ?? 100
+    const maxPerRepo = Math.ceil(maxResults / repositories.length)
 
-    for (const repo of repositories) {
-      try {
-        const routes = await this.searchInRepo(repo, options, maxResults)
-        allResults.push(...routes)
+    // Process repositories in parallel
+    const repoResultsArray = await Promise.all(
+      repositories.map(repo =>
+        this.searchInRepo(repo, options, maxPerRepo).catch((error) => {
+          logger.error('Error searching for API routes in repository', { repo: repo.path, error })
+          return []
+        }),
+      ),
+    )
 
-        if (allResults.length >= maxResults) {
-          break
-        }
-      }
-      catch (error) {
-        logger.error('Error searching for API routes in repository', { repo: repo.path, error })
-        // Continue with other repositories
-      }
-    }
-
-    return allResults.slice(0, maxResults)
+    // Flatten and limit results
+    const results = repoResultsArray.flat()
+    return results.slice(0, maxResults)
   }
 
   private async searchInRepo(
@@ -52,7 +52,7 @@ export class APIRouteSearchEngine {
     const results: APIRoute[] = []
 
     // Search for JavaScript/TypeScript and PHP files
-    const globPatterns = ['**/*.{ts,js,mjs,cjs,php}']
+    const globPatterns = ['**/*.{ts,tsx,js,jsx,mjs,cjs,php}']
 
     const files = await fg(globPatterns, {
       cwd: repo.path,
@@ -61,12 +61,24 @@ export class APIRouteSearchEngine {
       onlyFiles: true,
     })
 
-    for (const filePath of files) {
-      if (results.length >= maxResults)
-        break
+    // Process files in parallel batches
+    for (let i = 0; i < files.length && results.length < maxResults; i += FILE_CONCURRENCY) {
+      const batch = files.slice(i, Math.min(i + FILE_CONCURRENCY, files.length))
 
-      const routes = await this.findRoutesInFile(filePath, repo, options)
-      results.push(...routes)
+      const batchResults = await Promise.all(
+        batch.map(filePath =>
+          this.findRoutesInFile(filePath, repo, options).catch((error) => {
+            logger.debug('Error parsing file for API routes', { filePath, error })
+            return []
+          }),
+        ),
+      )
+
+      for (const fileResults of batchResults) {
+        results.push(...fileResults)
+        if (results.length >= maxResults)
+          break
+      }
     }
 
     return results.slice(0, maxResults)
@@ -79,45 +91,81 @@ export class APIRouteSearchEngine {
   ): Promise<APIRoute[]> {
     const routes: APIRoute[] = []
 
-    try {
-      const content = await readFile(filePath, 'utf-8')
-      const ext = filePath.substring(filePath.lastIndexOf('.'))
-      const language = getLanguageFromExtension(ext)
+    // Check language from extension BEFORE reading file
+    const ext = filePath.substring(filePath.lastIndexOf('.'))
+    const language = getLanguageFromExtension(ext)
 
-      if (!language || ![SupportedLanguage.JavaScript, SupportedLanguage.TypeScript, SupportedLanguage.PHP].includes(language)) {
+    if (!language || ![SupportedLanguage.JavaScript, SupportedLanguage.TypeScript, SupportedLanguage.PHP].includes(language)) {
+      return routes
+    }
+
+    // Check path-based indicators before reading file (cheap check)
+    const lowerPath = filePath.toLowerCase()
+    const pathHasRouteIndicators = lowerPath.includes('route') || lowerPath.includes('controller')
+
+    // For files without path indicators, we still need to read content to check
+    // But we can skip PHP files without 'route' in path (they need Route:: facade)
+    if (language === SupportedLanguage.PHP && !pathHasRouteIndicators) {
+      return routes
+    }
+
+    const content = await readFile(filePath, 'utf-8')
+
+    // Early framework detection - skip files unlikely to contain routes
+    const lowerContent = content.toLowerCase()
+
+    if (language === SupportedLanguage.PHP) {
+      // For PHP, check for Laravel Route facade
+      if (!lowerContent.includes('route::')) {
         return routes
-      }
-
-      // Adjust language key for ast-grep if needed (ast-grep usually expects 'php')
-      const langKey = (language === SupportedLanguage.JavaScript || language === SupportedLanguage.TypeScript) ? language : SupportedLanguage.PHP
-
-      let root
-      try {
-        root = parse(langKey as any, content)
-      }
-      catch {
-      // Should only happen if language not supported by current ast-grep build
-        return routes
-      }
-
-      const rootNode = root.root()
-
-      if (langKey === SupportedLanguage.PHP) {
-        routes.push(...this.findLaravelRoutes(rootNode, filePath, repo, options))
-      }
-      else {
-        // Express routes: app.get(), router.post(), etc.
-        routes.push(...this.findExpressRoutes(rootNode, filePath, repo, options))
-
-        // Fastify routes: fastify.get(), app.route()
-        routes.push(...this.findFastifyRoutes(rootNode, filePath, repo, options))
-
-        // NestJS decorators: @Get(), @Post(), etc.
-        routes.push(...this.findNestJSRoutes(rootNode, content, filePath, repo, options))
       }
     }
-    catch (error) {
-      logger.debug('Error parsing file for API routes', { filePath, error })
+    else if (!pathHasRouteIndicators) {
+      // For JS/TS without path indicators, check content for route patterns
+      const hasRouteIndicators
+        = lowerContent.includes('.get(')
+          || lowerContent.includes('.post(')
+          || lowerContent.includes('.put(')
+          || lowerContent.includes('.delete(')
+          || lowerContent.includes('.patch(')
+          || lowerContent.includes('.all(')
+          || lowerContent.includes('@get(')
+          || lowerContent.includes('@post(')
+          || lowerContent.includes('@put(')
+          || lowerContent.includes('@delete(')
+          || lowerContent.includes('@patch(')
+
+      if (!hasRouteIndicators) {
+        return routes
+      }
+    }
+
+    // Adjust language key for ast-grep if needed
+    const langKey = (language === SupportedLanguage.JavaScript || language === SupportedLanguage.TypeScript) ? language : SupportedLanguage.PHP
+
+    let root
+    try {
+      root = parse(langKey as any, content)
+    }
+    catch {
+      // Should only happen if language not supported by current ast-grep build
+      return routes
+    }
+
+    const rootNode = root.root()
+
+    if (langKey === SupportedLanguage.PHP) {
+      routes.push(...this.findLaravelRoutes(rootNode, filePath, repo, options))
+    }
+    else {
+      // Express routes: app.get(), router.post(), etc.
+      routes.push(...this.findExpressRoutes(rootNode, filePath, repo, options))
+
+      // Fastify routes: fastify.get(), app.route()
+      routes.push(...this.findFastifyRoutes(rootNode, filePath, repo, options))
+
+      // NestJS decorators: @Get(), @Post(), etc.
+      routes.push(...this.findNestJSRoutes(rootNode, content, filePath, repo, options))
     }
 
     return routes
@@ -444,7 +492,7 @@ export class APIRouteSearchEngine {
   }
 
   private extractMethod(text: string): string {
-  // Extract method from pattern like app.get() or @Get()
+    // Extract method from pattern like app.get() or @Get()
     const methodMatch = text.match(/\.(get|post|put|delete|patch|all)\(/i)
     if (methodMatch) {
       return methodMatch[1]

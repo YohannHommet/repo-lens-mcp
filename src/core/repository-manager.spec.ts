@@ -214,7 +214,7 @@ describe('repositoryManager', () => {
       await manager.unregister(repo.id)
 
       // Assert
-      const list = await manager.list()
+      const list = manager.list()
       expect(list).toHaveLength(0)
       expect(mockSave).toHaveBeenCalledTimes(2) // register + unregister
     })
@@ -227,7 +227,7 @@ describe('repositoryManager', () => {
       await manager.unregister('my-app')
 
       // Assert
-      const list = await manager.list()
+      const list = manager.list()
       expect(list).toHaveLength(0)
     })
 
@@ -239,7 +239,7 @@ describe('repositoryManager', () => {
       await manager.unregister('/projects/app')
 
       // Assert
-      const list = await manager.list()
+      const list = manager.list()
       expect(list).toHaveLength(0)
     })
 
@@ -258,7 +258,7 @@ describe('repositoryManager', () => {
   describe('list', () => {
     it('should return empty array when no repositories registered', async () => {
       // Act
-      const result = await manager.list()
+      const result = manager.list()
 
       // Assert
       expect(result).toEqual([])
@@ -271,7 +271,7 @@ describe('repositoryManager', () => {
       await manager.register('/projects/app3')
 
       // Act
-      const result = await manager.list()
+      const result = manager.list()
 
       // Assert
       expect(result).toHaveLength(3)
@@ -284,7 +284,7 @@ describe('repositoryManager', () => {
       await manager.register('/projects/shared', { tags: ['shared'] })
 
       // Act
-      const result = await manager.list({ tags: ['frontend'] })
+      const result = manager.list({ tags: ['frontend'] })
 
       // Assert
       expect(result).toHaveLength(1)
@@ -298,7 +298,7 @@ describe('repositoryManager', () => {
       await manager.register('/projects/shared', { tags: ['shared'] })
 
       // Act
-      const result = await manager.list({ tags: ['frontend', 'backend'] })
+      const result = manager.list({ tags: ['frontend', 'backend'] })
 
       // Assert
       expect(result).toHaveLength(2)
@@ -312,7 +312,7 @@ describe('repositoryManager', () => {
       await manager.register('/projects/app', { tags: ['backend'] })
 
       // Act
-      const result = await manager.list({ tags: ['frontend'] })
+      const result = manager.list({ tags: ['frontend'] })
 
       // Assert
       expect(result).toEqual([])
@@ -324,7 +324,7 @@ describe('repositoryManager', () => {
       await manager.register('/projects/app2')
 
       // Act
-      const result = await manager.list({ tags: [] })
+      const result = manager.list({ tags: [] })
 
       // Assert
       expect(result).toHaveLength(2)
@@ -341,7 +341,7 @@ describe('repositoryManager', () => {
       const repo = await manager.register('/projects/app')
 
       // Act
-      const result = await manager.get(repo.id)
+      const result = manager.get(repo.id)
 
       // Assert
       expect(result).not.toBeNull()
@@ -353,7 +353,7 @@ describe('repositoryManager', () => {
       await manager.register('/projects/app', { alias: 'my-app' })
 
       // Act
-      const result = await manager.get('my-app')
+      const result = manager.get('my-app')
 
       // Assert
       expect(result).not.toBeNull()
@@ -365,7 +365,7 @@ describe('repositoryManager', () => {
       await manager.register('/projects/app')
 
       // Act
-      const result = await manager.get('/projects/app')
+      const result = manager.get('/projects/app')
 
       // Assert
       expect(result).not.toBeNull()
@@ -374,7 +374,7 @@ describe('repositoryManager', () => {
 
     it('should return null when repository not found', async () => {
       // Act
-      const result = await manager.get('non-existent')
+      const result = manager.get('non-existent')
 
       // Assert
       expect(result).toBeNull()
@@ -574,7 +574,7 @@ describe('repositoryManager', () => {
 
       // Act
       await manager.load()
-      const result = await manager.list()
+      const result = manager.list()
 
       // Assert
       expect(result).toHaveLength(1)

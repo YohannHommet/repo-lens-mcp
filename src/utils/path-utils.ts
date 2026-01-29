@@ -29,15 +29,6 @@ export function isValidDirectory(path: string): boolean {
   }
 }
 
-export function isValidFile(path: string): boolean {
-  try {
-    return existsSync(path) && statSync(path).isFile()
-  }
-  catch {
-    return false
-  }
-}
-
 export function getRelativePath(basePath: string, filePath: string): string {
   return relative(basePath, filePath)
 }

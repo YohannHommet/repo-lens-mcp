@@ -1,6 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { RepositoryManager } from '../core/repository-manager.js'
 import type { APIRouteSearchEngine } from '../search/api-route-search.js'
+import type { APIRoute } from '../types/symbols.js'
 import { z } from 'zod'
 import { logger } from '../utils/logger.js'
 import { splitCommaSeparated } from '../utils/string-utils.js'
@@ -8,7 +9,7 @@ import { splitCommaSeparated } from '../utils/string-utils.js'
 /**
  * Helper to format API route results as Markdown
  */
-function formatApiRoutes(results: any[]): string {
+function formatApiRoutes(results: APIRoute[]): string {
   if (results.length === 0) {
     return 'No API routes found.'
   }
@@ -16,7 +17,7 @@ function formatApiRoutes(results: any[]): string {
   let output = `## Found ${results.length} API Routes\n\n`
 
   // Group by repository
-  const grouped = results.reduce((acc: any, r: any) => {
+  const grouped = results.reduce<Record<string, APIRoute[]>>((acc, r) => {
     const key = r.repositoryAlias || r.repository
     if (!acc[key]) {
       acc[key] = []
@@ -29,8 +30,8 @@ function formatApiRoutes(results: any[]): string {
     output += `### Repository: ${repo}\n`
     output += '| Method | Path | Framework | File |\n'
     output += '|:---|:---|:---|:---|\n'
-    for (const r of (routes as any[])) {
-      output += `| **${r.method}** | \`${r.path}\` | ${r.framework} | \`${r.relativePath}\`:L${r.lineNumber} |\n`
+    for (const r of routes) {
+      output += `| **${r.method}** | \`${r.path}\` | ${r.framework || 'unknown'} | \`${r.relativePath}\`:L${r.lineNumber} |\n`
     }
     output += '\n'
   }

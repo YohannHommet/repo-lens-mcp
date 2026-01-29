@@ -122,7 +122,7 @@ describe('repository tools', () => {
   describe('repositories - list mode', () => {
     it('should list all repositories', async () => {
       // Arrange
-      mockRepoManager.list.mockResolvedValue([mockRepo])
+      mockRepoManager.list.mockReturnValue([mockRepo])
       const handler = toolHandlers.get('repositories')!
 
       // Act
@@ -136,7 +136,7 @@ describe('repository tools', () => {
 
     it('should filter repositories by tags', async () => {
       // Arrange
-      mockRepoManager.list.mockResolvedValue([mockRepo])
+      mockRepoManager.list.mockReturnValue([mockRepo])
       const handler = toolHandlers.get('repositories')!
 
       // Act
@@ -149,7 +149,7 @@ describe('repository tools', () => {
 
     it('should handle empty repository list', async () => {
       // Arrange
-      mockRepoManager.list.mockResolvedValue([])
+      mockRepoManager.list.mockReturnValue([])
       const handler = toolHandlers.get('repositories')!
 
       // Act
@@ -162,7 +162,7 @@ describe('repository tools', () => {
     it('should display repository without alias using id', async () => {
       // Arrange
       const repoWithoutAlias = { ...mockRepo, alias: undefined }
-      mockRepoManager.list.mockResolvedValue([repoWithoutAlias])
+      mockRepoManager.list.mockReturnValue([repoWithoutAlias])
       const handler = toolHandlers.get('repositories')!
 
       // Act
@@ -175,7 +175,7 @@ describe('repository tools', () => {
     it('should display repository without tags', async () => {
       // Arrange
       const repoWithoutTags = { ...mockRepo, tags: [] }
-      mockRepoManager.list.mockResolvedValue([repoWithoutTags])
+      mockRepoManager.list.mockReturnValue([repoWithoutTags])
       const handler = toolHandlers.get('repositories')!
 
       // Act
@@ -189,7 +189,7 @@ describe('repository tools', () => {
   describe('repositories - get mode', () => {
     it('should get repository by identifier', async () => {
       // Arrange
-      mockRepoManager.get.mockResolvedValue(mockRepo)
+      mockRepoManager.get.mockReturnValue(mockRepo)
       const handler = toolHandlers.get('repositories')!
 
       // Act
@@ -204,7 +204,7 @@ describe('repository tools', () => {
 
     it('should return error when repository not found', async () => {
       // Arrange
-      mockRepoManager.get.mockResolvedValue(null)
+      mockRepoManager.get.mockReturnValue(null)
       const handler = toolHandlers.get('repositories')!
 
       // Act
@@ -262,7 +262,9 @@ describe('repository tools', () => {
   describe('error handling', () => {
     it('should handle list errors', async () => {
       // Arrange
-      mockRepoManager.list.mockRejectedValue(new Error('Database error'))
+      mockRepoManager.list.mockImplementation(() => {
+        throw new Error('Database error')
+      })
       const handler = toolHandlers.get('repositories')!
 
       // Act
@@ -275,7 +277,9 @@ describe('repository tools', () => {
 
     it('should handle get errors', async () => {
       // Arrange
-      mockRepoManager.get.mockRejectedValue(new Error('Connection failed'))
+      mockRepoManager.get.mockImplementation(() => {
+        throw new Error('Connection failed')
+      })
       const handler = toolHandlers.get('repositories')!
 
       // Act

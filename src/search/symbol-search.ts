@@ -11,35 +11,33 @@ import { LANGUAGE_PATTERNS } from '../parsers/patterns/index.js'
 import { logger } from '../utils/logger.js'
 import { getRelativePath } from '../utils/path-utils.js'
 
+const FILE_CONCURRENCY = 8
+const MAX_PATTERN_CACHE_SIZE = 100
+
 export class SymbolSearchEngine {
+  private patternRegexCache = new Map<string, RegExp>()
+  private exportBlockCache = new Map<string, { named: Set<string>, default: string | null }>()
+
   async search(
     options: SymbolSearchOptions,
     repositories: Repository[],
   ): Promise<SymbolResult[]> {
-    const results: SymbolResult[] = []
-    const maxPerRepo = options.maxResults
-      ? Math.ceil(options.maxResults / repositories.length)
-      : 500
+    const maxResults = options.maxResults ?? 100
+    const maxPerRepo = Math.ceil(maxResults / repositories.length)
 
-    for (const repo of repositories) {
-      try {
-        const repoResults = await this.searchInRepo(repo, options, maxPerRepo)
-        results.push(...repoResults)
+    // Process repositories in parallel
+    const repoResultsArray = await Promise.all(
+      repositories.map(repo =>
+        this.searchInRepo(repo, options, maxPerRepo).catch((error) => {
+          logger.error('Error searching repository', { repo: repo.path, error })
+          return []
+        }),
+      ),
+    )
 
-        if (options.maxResults && results.length >= options.maxResults) {
-          break
-        }
-      }
-      catch (error) {
-        logger.error('Error searching repository', { repo: repo.path, error })
-      }
-    }
-
-    if (options.maxResults && results.length > options.maxResults) {
-      return results.slice(0, options.maxResults)
-    }
-
-    return results
+    // Flatten and limit results
+    const results = repoResultsArray.flat()
+    return results.slice(0, maxResults)
   }
 
   private async searchInRepo(
@@ -61,18 +59,28 @@ export class SymbolSearchEngine {
       onlyFiles: true,
     })
 
-    for (const filePath of files) {
-      if (results.length >= maxResults)
-        break
+    // Process files in parallel batches
+    for (let i = 0; i < files.length && results.length < maxResults; i += FILE_CONCURRENCY) {
+      const batch = files.slice(i, Math.min(i + FILE_CONCURRENCY, files.length))
 
-      try {
-        const fileResults = await this.searchInFile(repo, filePath, options)
+      const batchResults = await Promise.all(
+        batch.map(filePath =>
+          this.searchInFile(repo, filePath, options).catch((error) => {
+            logger.debug('Error parsing file', { filePath, error })
+            return []
+          }),
+        ),
+      )
+
+      for (const fileResults of batchResults) {
         results.push(...fileResults)
-      }
-      catch (error) {
-        logger.debug('Error parsing file', { filePath, error })
+        if (results.length >= maxResults)
+          break
       }
     }
+
+    // Clear file-level caches after repo search
+    this.exportBlockCache.clear()
 
     return results
   }
@@ -141,7 +149,7 @@ export class SymbolSearchEngine {
           }
 
           // Check export status
-          const exported = this.checkExportStatus(match, name, content)
+          const exported = this.checkExportStatus(match, name, content, filePath)
 
           // Apply exportedOnly filter
           if (options.exportedOnly && !exported) {
@@ -175,16 +183,69 @@ export class SymbolSearchEngine {
 
   private matchesName(name: string, pattern: string): boolean {
     if (pattern.includes('*')) {
-      const regex = new RegExp(`^${pattern.replace(/\*/g, '.*')}$`, 'i')
+      let regex = this.patternRegexCache.get(pattern)
+      if (!regex) {
+        // Clear cache if it gets too large to prevent memory leaks
+        if (this.patternRegexCache.size >= MAX_PATTERN_CACHE_SIZE) {
+          this.patternRegexCache.clear()
+        }
+        regex = new RegExp(`^${pattern.replace(/\*/g, '.*')}$`, 'i')
+        this.patternRegexCache.set(pattern, regex)
+      }
       return regex.test(name)
     }
     return name.toLowerCase().includes(pattern.toLowerCase())
   }
 
   /**
-   * Check if a symbol is exported using AST analysis and regex fallback
+   * Parse export block once per file to avoid repeated regex operations
    */
-  private checkExportStatus(match: SgNode, name: string, content: string): boolean {
+  private parseExportBlock(content: string): { named: Set<string>, default: string | null } {
+    const named = new Set<string>()
+    let defaultExport: string | null = null
+
+    // Parse named exports: export { foo, bar, baz }
+    // Handles: export { foo }, export { foo as bar }, export { type Foo }
+    const namedExportBlocks = content.match(/export\s*\{([^}]+)\}/g)
+    if (namedExportBlocks) {
+      for (const block of namedExportBlocks) {
+        // Extract the content inside braces
+        const innerMatch = block.match(/\{([^}]+)\}/)
+        if (innerMatch) {
+          // Split by comma and extract each export name
+          const exports = innerMatch[1].split(',')
+          for (const exp of exports) {
+            // Handle: "foo", "foo as bar", "type Foo", "type Foo as Bar"
+            // We want the LOCAL name (before 'as' if present)
+            const trimmed = exp.trim()
+            // Skip if empty
+            if (!trimmed)
+              continue
+            // Remove 'type' keyword if present
+            const withoutType = trimmed.replace(/^type\s+/, '')
+            // Get the local name (before 'as' if renaming)
+            const localName = withoutType.split(/\s+as\s+/)[0].trim()
+            if (localName && /^\w+$/.test(localName)) {
+              named.add(localName)
+            }
+          }
+        }
+      }
+    }
+
+    // Parse default export: export default Foo
+    const defaultMatch = content.match(/export\s+default\s+(\w+)/)
+    if (defaultMatch) {
+      defaultExport = defaultMatch[1]
+    }
+
+    return { named, default: defaultExport }
+  }
+
+  /**
+   * Check if a symbol is exported using AST analysis and cached export block
+   */
+  private checkExportStatus(match: SgNode, name: string, content: string, filePath: string): boolean {
     // 1. Check AST ancestry for export_statement
     // This handles: export function..., export class..., export const...
     try {
@@ -201,17 +262,19 @@ export class SymbolSearchEngine {
       // Ignore AST errors
     }
 
-    // 2. Check for named exports: export { name }
-    const namedExportRegex = new RegExp(`export\\s*{[^}]*\\b${name}\\b[^}]*}`, 'm')
-    if (namedExportRegex.test(content))
+    // 2. Use cached export block instead of per-symbol regex
+    let exports = this.exportBlockCache.get(filePath)
+    if (!exports) {
+      exports = this.parseExportBlock(content)
+      this.exportBlockCache.set(filePath, exports)
+    }
+
+    if (exports.named.has(name))
+      return true
+    if (exports.default === name)
       return true
 
-    // 3. Check for default export: export default name
-    const defaultExportRegex = new RegExp(`export\\s+default\\s+\\b${name}\\b`, 'm')
-    if (defaultExportRegex.test(content))
-      return true
-
-    // 4. Fallback: check if line starts with export (legacy check)
+    // 3. Fallback: check if line starts with export (legacy check)
     try {
       const range = match.range()
       const lineStart = content.lastIndexOf('\n', range.start.index) + 1

@@ -1,6 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { RepositoryManager } from '../core/repository-manager.js'
 import type { SymbolSearchEngine } from '../search/symbol-search.js'
+import type { SymbolResult } from '../types/symbols.js'
 import { z } from 'zod'
 import { logger } from '../utils/logger.js'
 import { getLanguageForFile } from '../utils/path-utils.js'
@@ -9,7 +10,7 @@ import { splitCommaSeparated } from '../utils/string-utils.js'
 /**
  * Helper to format symbol results as Markdown
  */
-function formatSymbolResults(results: any[], kind: string, pattern: string | undefined): string {
+function formatSymbolResults(results: SymbolResult[], kind: string, pattern: string | undefined): string {
   if (results.length === 0) {
     return `No ${kind}s found matching "${pattern || '*'}"`
   }
@@ -17,7 +18,7 @@ function formatSymbolResults(results: any[], kind: string, pattern: string | und
   let output = `## Found ${results.length} ${kind}s${pattern ? ` matching "${pattern}"` : ''}\n\n`
 
   // Group by file
-  const grouped = results.reduce((acc: any, r: any) => {
+  const grouped = results.reduce<Record<string, SymbolResult[]>>((acc, r) => {
     const key = `${r.repositoryAlias || r.repository}:${r.relativePath}`
     if (!acc[key]) {
       acc[key] = []
@@ -31,7 +32,7 @@ function formatSymbolResults(results: any[], kind: string, pattern: string | und
     const lang = getLanguageForFile(path)
     output += `### ${repo}:${path}\n`
     output += `\`\`\`${lang}\n`
-    for (const m of (matches as any[])) {
+    for (const m of matches) {
       const lineInfo = `L${m.startLine}${m.endLine !== m.startLine ? `-${m.endLine}` : ''}`
       output += `${lineInfo.padEnd(8)} | ${m.signature || m.name}${m.exported ? ' (exported)' : ''}\n`
     }
