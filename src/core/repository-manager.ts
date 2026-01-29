@@ -26,7 +26,7 @@ export class RepositoryManager {
     this.repositories = await this.store.load()
   }
 
-  async register(path: string, options?: RegisterOptions): Promise<Repository> {
+  async register(path: string, options?: RegisterOptions): Promise<Repository & { _action: 'registered' | 'updated' }> {
     const normalizedPath = await this.scanner.validatePath(path)
 
     // Check if already registered
@@ -41,7 +41,8 @@ export class RepositoryManager {
     if (existingRepo) {
       if (options?.force) {
         // Update existing repo
-        return this.update(existingRepo, options)
+        const updated = await this.update(existingRepo, options)
+        return { ...updated, _action: 'updated' }
       }
       throw new Error(`Repository already registered: ${path}`)
     }
@@ -71,7 +72,7 @@ export class RepositoryManager {
 
     logger.info('Repository registered', { id: repository.id, path: normalizedPath })
 
-    return repository
+    return { ...repository, _action: 'registered' as const }
   }
 
   private async update(repo: Repository, options: RegisterOptions): Promise<Repository> {

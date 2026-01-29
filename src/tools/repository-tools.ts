@@ -29,7 +29,7 @@ export function registerRepositoryTools(
               text: JSON.stringify(
                 {
                   success: true,
-                  action: repo._action || (force ? 'updated' : 'registered'),
+                  action: repo._action,
                   repository: {
                     id: repo.id,
                     path: repo.path,
@@ -69,7 +69,7 @@ export function registerRepositoryTools(
         // Validate: remove requires identifier
         if (remove && !identifier) {
           return {
-            content: [{ type: 'text', text: 'Error: remove requires an identifier' }],
+            content: [{ type: 'text', text: 'Error: "remove" requires an "identifier" to specify which repository to remove' }],
             isError: true,
           }
         }
