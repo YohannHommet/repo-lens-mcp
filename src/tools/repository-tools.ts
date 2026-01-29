@@ -29,7 +29,7 @@ export function registerRepositoryTools(
               text: JSON.stringify(
                 {
                   success: true,
-                  action: repo._action,
+                  action: repo.action,
                   repository: {
                     id: repo.id,
                     path: repo.path,

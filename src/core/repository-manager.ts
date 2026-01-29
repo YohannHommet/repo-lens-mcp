@@ -1,4 +1,4 @@
-import type { Repository, RepositoryFilter } from '../types/repository.js'
+import type { RegisterResult, Repository, RepositoryFilter } from '../types/repository.js'
 
 import { randomUUID } from 'node:crypto'
 import { logger } from '../utils/logger.js'
@@ -26,7 +26,7 @@ export class RepositoryManager {
     this.repositories = await this.store.load()
   }
 
-  async register(path: string, options?: RegisterOptions): Promise<Repository & { _action: 'registered' | 'updated' }> {
+  async register(path: string, options?: RegisterOptions): Promise<RegisterResult> {
     const normalizedPath = await this.scanner.validatePath(path)
 
     // Check if already registered
@@ -42,7 +42,7 @@ export class RepositoryManager {
       if (options?.force) {
         // Update existing repo
         const updated = await this.update(existingRepo, options)
-        return { ...updated, _action: 'updated' }
+        return { ...updated, action: 'updated' }
       }
       throw new Error(`Repository already registered: ${path}`)
     }
@@ -72,7 +72,7 @@ export class RepositoryManager {
 
     logger.info('Repository registered', { id: repository.id, path: normalizedPath })
 
-    return { ...repository, _action: 'registered' as const }
+    return { ...repository, action: 'registered' }
   }
 
   private async update(repo: Repository, options: RegisterOptions): Promise<Repository> {

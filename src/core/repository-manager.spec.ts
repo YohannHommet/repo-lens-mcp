@@ -67,7 +67,7 @@ describe('repositoryManager', () => {
       expect(result.alias).toBeUndefined()
       expect(result.tags).toEqual([])
       expect(result.gitInfo).toEqual(defaultGitInfo)
-      expect(result._action).toBe('registered')
+      expect(result.action).toBe('registered')
       expect(result.id).toBeDefined()
       expect(result.registeredAt).toBeInstanceOf(Date)
       expect(mockValidatePath).toHaveBeenCalledWith(path)
@@ -147,7 +147,7 @@ describe('repositoryManager', () => {
       expect(updated.alias).toBe('new-alias')
       expect(updated.tags).toEqual(['new-tag'])
       expect(updated.gitInfo).toEqual(newGitInfo)
-      expect(updated._action).toBe('updated')
+      expect(updated.action).toBe('updated')
     })
 
     it('should keep existing alias if not provided in force update', async () => {

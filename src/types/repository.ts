@@ -16,3 +16,7 @@ export interface Repository {
 export interface RepositoryFilter {
   tags?: string[]
 }
+
+export interface RegisterResult extends Repository {
+  action: 'registered' | 'updated'
+}
