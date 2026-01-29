@@ -18,5 +18,7 @@ export default antfu({
     'dist',
     'coverage',
     '**/*.d.ts',
+    'CLAUDE.md',
+    'REFACTORING_PLAN.md',
   ],
 })

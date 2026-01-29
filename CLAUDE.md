@@ -163,16 +163,17 @@ MCP Server (index.ts)
 All tools follow this pattern:
 ```typescript
 server.tool(
-  'tool_name',                    // snake_case naming
-  'Clear description',            // Human-readable description
-  {                               // Zod schema with documentation
+  'tool_name', // snake_case naming
+  'Clear description', // Human-readable description
+  { // Zod schema with documentation
     param: z.string().describe('What this does'),
   },
-  async ({ param }) => {          // Type-safe handler
+  async ({ param }) => { // Type-safe handler
     try {
       // Implementation
       return { content: [{ type: 'text', text: result }] }
-    } catch (error) {
+    }
+    catch (error) {
       return {
         content: [{ type: 'text', text: `Error: ${error.message}` }],
         isError: true

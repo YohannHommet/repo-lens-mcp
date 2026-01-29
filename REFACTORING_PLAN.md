@@ -102,20 +102,21 @@ Throughout this refactoring, strictly maintain these MCP patterns:
 ### 1. Tool Registration Pattern
 ```typescript
 server.tool(
-  'tool_name',                    // snake_case, verb-noun format
-  'Human-readable description',   // Clear purpose
-  {                               // Zod schema
+  'tool_name', // snake_case, verb-noun format
+  'Human-readable description', // Clear purpose
+  { // Zod schema
     param: z.string().describe('Documentation'),
     optional: z.number().optional().describe('Optional param'),
   },
-  async ({ param, optional }) => {  // Type-safe handler
+  async ({ param, optional }) => { // Type-safe handler
     try {
       // Implementation
       return { content: [{ type: 'text', text: result }] }
-    } catch (error) {
+    }
+    catch (error) {
       return {
         content: [{ type: 'text', text: `Error: ${error.message}` }],
-        isError: true  // Flag errors
+        isError: true // Flag errors
       }
     }
   }
@@ -372,9 +373,9 @@ grep -r "FileSearchEngine" src/  # Should return nothing
     alias?: string
     tags: string[]
     gitInfo: GitInfo
-    languages: string[]      // ← REMOVE
-    lastScanned: Date        // ← REMOVE
-    fileCount: number        // ← REMOVE
+    languages: string[] // ← REMOVE
+    lastScanned: Date // ← REMOVE
+    fileCount: number // ← REMOVE
   }
 
   // AFTER
@@ -384,7 +385,7 @@ grep -r "FileSearchEngine" src/  # Should return nothing
     alias?: string
     tags: string[]
     gitInfo: GitInfo
-    registeredAt: Date       // ← NEW (replace lastScanned)
+    registeredAt: Date // ← NEW (replace lastScanned)
   }
   ```
 
@@ -405,7 +406,7 @@ grep -r "FileSearchEngine" src/  # Should return nothing
     const repository: Repository = {
       // ... other fields
       gitInfo,
-      registeredAt: new Date(),  // NEW
+      registeredAt: new Date(), // NEW
       // Remove: languages, fileCount, lastScanned
     }
     ```
@@ -506,9 +507,9 @@ npm list --depth=0
 - `src/config/index.ts`
   ```typescript
   export function loadConfig(): ServerConfig {
-    const configDir =
-      process.env.MCP_REPO_SEARCH_CONFIG_DIR?.replace('~', homedir())
-      || join(homedir(), '.config', 'mcp-repo-search')
+    const configDir
+      = process.env.MCP_REPO_SEARCH_CONFIG_DIR?.replace('~', homedir())
+        || join(homedir(), '.config', 'mcp-repo-search')
 
     return {
       configDir,
