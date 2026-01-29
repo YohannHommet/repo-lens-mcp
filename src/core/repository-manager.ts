@@ -39,7 +39,7 @@ export class RepositoryManager {
       }
     }
 
-    const { gitInfo, languages, fileCount } = await this.scanner.scan(normalizedPath)
+    const { gitInfo } = await this.scanner.scan(normalizedPath)
 
     const repository: Repository = {
       id: randomUUID(),
@@ -47,9 +47,7 @@ export class RepositoryManager {
       alias: options?.alias,
       tags: options?.tags || [],
       gitInfo,
-      languages,
-      lastScanned: new Date(),
-      fileCount,
+      registeredAt: new Date(),
     }
 
     this.repositories.set(repository.id, repository)
@@ -92,12 +90,9 @@ export class RepositoryManager {
       throw new Error(`Repository not found: ${identifier}`)
     }
 
-    const { gitInfo, languages, fileCount } = await this.scanner.scan(repo.path)
+    const { gitInfo } = await this.scanner.scan(repo.path)
 
     repo.gitInfo = gitInfo
-    repo.languages = languages
-    repo.fileCount = fileCount
-    repo.lastScanned = new Date()
 
     await this.store.save(this.repositories)
 

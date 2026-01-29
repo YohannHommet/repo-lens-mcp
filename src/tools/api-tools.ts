@@ -1,8 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import type { ServerConfig } from '../config/types.js'
 import type { RepositoryManager } from '../core/repository-manager.js'
 import type { APIRouteSearchEngine } from '../search/api-route-search.js'
-import type { SearchCache } from '../utils/cache.js'
 import { z } from 'zod'
 import { logger } from '../utils/logger.js'
 import { splitCommaSeparated } from '../utils/string-utils.js'
@@ -10,12 +8,12 @@ import { splitCommaSeparated } from '../utils/string-utils.js'
 /**
  * Helper to format API route results as Markdown
  */
-function formatApiRoutes(results: any[], isCached: boolean): string {
+function formatApiRoutes(results: any[]): string {
   if (results.length === 0) {
     return 'No API routes found.'
   }
 
-  let output = `## Found ${results.length} API Routes${isCached ? ' (cached)' : ''}\n\n`
+  let output = `## Found ${results.length} API Routes\n\n`
 
   // Group by repository
   const grouped = results.reduce((acc: any, r: any) => {
@@ -44,17 +42,15 @@ export function registerApiTools(
   server: McpServer,
   repoManager: RepositoryManager,
   apiRouteSearch: APIRouteSearchEngine,
-  searchCache: SearchCache<any>,
-  config: ServerConfig,
 ) {
   server.tool(
     'find_api_routes',
-    'Find API route definitions in backend code (Express, Fastify, NestJS). Perfect for frontend devs needing to know backend endpoints.',
+    'Find API route definitions in backend code (Express, Fastify, NestJS, Laravel). Perfect for frontend devs needing to know backend endpoints.',
     {
       method: z.string().optional().describe('HTTP method (GET, POST, PUT, DELETE, PATCH)'),
       pathPattern: z.string().optional().describe('Filter by path pattern (e.g., "/users", "/api")'),
       repoFilter: z.string().optional().describe('Repository aliases or paths to search (comma-separated)'),
-      framework: z.string().optional().describe('Filter by framework (express, fastify, nestjs)'),
+      framework: z.string().optional().describe('Filter by framework (express, fastify, nestjs, laravel)'),
       maxResults: z.number().optional().describe('Maximum results'),
     },
     async ({ method, pathPattern, repoFilter, framework, maxResults }) => {
@@ -70,29 +66,6 @@ export function registerApiTools(
           }
         }
 
-        // Check cache
-        const cacheKey = searchCache.generateKey('api_routes', {
-          method,
-          pathPattern,
-          repos: repositories.map(r => r.id).sort(),
-          framework,
-          maxResults,
-        })
-
-        if (config.cacheEnabled) {
-          const cached = searchCache.get(cacheKey)
-          if (cached) {
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text: formatApiRoutes(cached as any[], true),
-                },
-              ],
-            }
-          }
-        }
-
         const results = await apiRouteSearch.search(
           {
             method,
@@ -103,15 +76,11 @@ export function registerApiTools(
           repositories,
         )
 
-        if (config.cacheEnabled) {
-          searchCache.set(cacheKey, results)
-        }
-
         return {
           content: [
             {
               type: 'text',
-              text: formatApiRoutes(results, false),
+              text: formatApiRoutes(results),
             },
           ],
         }

@@ -35,8 +35,6 @@ describe('repositoryManager', () => {
     mockValidatePath.mockImplementation(async p => p) // Return path as is
     mockScan.mockResolvedValue({
       gitInfo: { branch: 'main', lastCommit: 'abc', remote: 'origin' },
-      languages: ['typescript'],
-      fileCount: 42,
     })
 
     repoManager = new RepositoryManager('/tmp/config')
@@ -98,15 +96,12 @@ describe('repositoryManager', () => {
       // Change scan result
       mockScan.mockResolvedValueOnce({
         gitInfo: { branch: 'develop', lastCommit: 'def', remote: 'origin' },
-        languages: ['rust'],
-        fileCount: 100,
       })
 
       await repoManager.refresh(repo.id)
 
       const updated = await repoManager.get(repo.id)
       expect(updated?.gitInfo.branch).toBe('develop')
-      expect(updated?.fileCount).toBe(100)
       expect(mockSave).toHaveBeenCalledTimes(2) // 1 register + 1 refresh
     })
   })

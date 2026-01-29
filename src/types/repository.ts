@@ -10,9 +10,7 @@ export interface Repository {
   alias?: string
   tags: string[]
   gitInfo: GitInfo
-  languages: string[]
-  lastScanned: Date
-  fileCount: number
+  registeredAt: Date
 }
 
 export interface RegisterOptions {

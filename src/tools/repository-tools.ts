@@ -1,6 +1,5 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { RepositoryManager } from '../core/repository-manager.js'
-import type { SearchCache } from '../utils/cache.js'
 import { z } from 'zod'
 import { logger } from '../utils/logger.js'
 import { splitCommaSeparated } from '../utils/string-utils.js'
@@ -8,7 +7,6 @@ import { splitCommaSeparated } from '../utils/string-utils.js'
 export function registerRepositoryTools(
   server: McpServer,
   repoManager: RepositoryManager,
-  searchCache: SearchCache<any>,
 ) {
   server.tool(
     'register_repository',
@@ -23,7 +21,6 @@ export function registerRepositoryTools(
       try {
         const tags = splitCommaSeparated(tagsString) || []
         const repo = await repoManager.register(path, { alias, tags })
-        searchCache.clear()
         return {
           content: [
             {
@@ -36,9 +33,8 @@ export function registerRepositoryTools(
                     path: repo.path,
                     alias: repo.alias,
                     tags: repo.tags,
-                    languages: repo.languages,
-                    fileCount: repo.fileCount,
                     branch: repo.gitInfo.branch,
+                    registeredAt: repo.registeredAt,
                   },
                 },
                 null,
@@ -66,7 +62,6 @@ export function registerRepositoryTools(
     async ({ identifier }) => {
       try {
         await repoManager.unregister(identifier)
-        searchCache.clear()
         return {
           content: [{ type: 'text', text: JSON.stringify({ success: true }) }],
         }
@@ -102,8 +97,6 @@ export function registerRepositoryTools(
           output += `### ${r.alias || r.id}\n`
           output += `- **Path**: \`${r.path}\`\n`
           output += `- **Branch**: \`${r.gitInfo.branch}\`\n`
-          output += `- **Files**: ${r.fileCount}\n`
-          output += `- **Languages**: ${r.languages.join(', ')}\n`
           if (r.tags && r.tags.length > 0) {
             output += `- **Tags**: ${r.tags.join(', ')}\n`
           }
@@ -163,16 +156,13 @@ export function registerRepositoryTools(
 
   server.tool(
     'refresh_repository',
-    'Re-scan a repository to update metadata',
+    'Re-scan a repository to update git information',
     {
       identifier: z.string().describe('Repository ID, alias, or path'),
     },
     async ({ identifier }) => {
       try {
         const repo = await repoManager.refresh(identifier)
-
-        // Invalidate cache as repo content changed
-        searchCache.clear()
 
         return {
           content: [
@@ -183,11 +173,8 @@ export function registerRepositoryTools(
                   success: true,
                   repository: {
                     id: repo.id,
-                    languages: repo.languages,
-                    fileCount: repo.fileCount,
                     branch: repo.gitInfo.branch,
                     lastCommit: repo.gitInfo.lastCommit,
-                    lastScanned: repo.lastScanned,
                   },
                 },
                 null,

@@ -1,11 +1,5 @@
 export interface ServerConfig {
   configDir: string
-  maxSearchResults: number
-  maxFileSize: number
-  searchTimeout: number
-  cacheEnabled: boolean
-  cacheTtl: number
-  cacheMaxEntries: number
   logLevel: 'debug' | 'info' | 'warn' | 'error'
 }
 
@@ -24,7 +18,5 @@ export interface SerializedRepository {
     branch: string
     lastCommit: string
   }
-  languages: string[]
-  lastScanned: string
-  fileCount: number
+  registeredAt: string
 }
