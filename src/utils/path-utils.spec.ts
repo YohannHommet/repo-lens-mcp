@@ -238,7 +238,7 @@ describe('path Utils', () => {
         if (from === '/data' && to.startsWith('/etc/')) {
           return `..${to}`
         }
-        if (to.startsWith(from + '/')) {
+        if (to.startsWith(`${from}/`)) {
           return to.slice(from.length + 1)
         }
         return `../${to}`
@@ -318,14 +318,16 @@ describe('path Utils', () => {
       vi.mocked(fs.realpathSync).mockImplementation((p) => {
         callCount++
         // First two calls are for isSubPath (parent and child)
-        if (callCount <= 2) return p as string
+        if (callCount <= 2)
+          return p as string
         // Third call is /proc/self/fd check - return path outside allowed dir
         if (typeof p === 'string' && p.includes('/proc/self/fd/'))
           return '/etc/passwd'
         return p as string
       })
       vi.mocked(path.relative).mockImplementation((from, to) => {
-        if (to === '/etc/passwd') return '../etc/passwd'
+        if (to === '/etc/passwd')
+          return '../etc/passwd'
         if (to.startsWith(from)) {
           const rel = to.slice(from.length)
           return rel.startsWith('/') ? rel.slice(1) : rel
@@ -350,7 +352,8 @@ describe('path Utils', () => {
       vi.mocked(fs.realpathSync).mockImplementation((p) => {
         callCount++
         // First two calls are for isSubPath
-        if (callCount <= 2) return p as string
+        if (callCount <= 2)
+          return p as string
         // /proc check throws non-security error
         if (typeof p === 'string' && p.includes('/proc/self/fd/'))
           throw new Error('ENOENT')
@@ -371,7 +374,8 @@ describe('path Utils', () => {
       vi.mocked(fs.realpathSync).mockImplementation((p) => {
         callCount++
         // First two calls are for isSubPath
-        if (callCount <= 2) return p as string
+        if (callCount <= 2)
+          return p as string
         // Throw error with "outside allowed directory" in message
         if (typeof p === 'string' && p.includes('/proc/self/fd/'))
           throw new Error('Symlink attack: real path outside allowed directory')

@@ -7,7 +7,6 @@
  * If no repo-path provided, uses the current repository.
  */
 
-import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import fg from 'fast-glob'
@@ -58,8 +57,10 @@ async function benchmark<T>(
 }
 
 function formatMs(ms: number): string {
-  if (ms < 1) return `${(ms * 1000).toFixed(0)}μs`
-  if (ms < 1000) return `${ms.toFixed(1)}ms`
+  if (ms < 1)
+    return `${(ms * 1000).toFixed(0)}μs`
+  if (ms < 1000)
+    return `${ms.toFixed(1)}ms`
   return `${(ms / 1000).toFixed(2)}s`
 }
 
@@ -101,7 +102,8 @@ async function main() {
     // Unregister first if exists
     try {
       await repoManager.unregister(resolvedPath)
-    } catch { /* ignore */ }
+    }
+    catch { /* ignore */ }
     return repoManager.register(resolvedPath, { alias: 'benchmark-repo' })
   }, 1)
   console.log(`  Registration: ${formatMs(regResult.avgDuration)}`)
@@ -113,33 +115,27 @@ async function main() {
   console.log('─── Symbol Search ───')
 
   const funcResult = await benchmark('find_functions', () =>
-    symbolSearch.search({ kind: 'function', maxResults: 100 }, repos),
-  )
+    symbolSearch.search({ kind: 'function', maxResults: 100 }, repos))
   console.log(`  find_functions (all): ${formatMs(funcResult.avgDuration)} (${funcResult.resultCount} results)`)
 
   const funcPatternResult = await benchmark('find_functions (pattern)', () =>
-    symbolSearch.search({ kind: 'function', name: 'handle*', maxResults: 100 }, repos),
-  )
+    symbolSearch.search({ kind: 'function', name: 'handle*', maxResults: 100 }, repos))
   console.log(`  find_functions (handle*): ${formatMs(funcPatternResult.avgDuration)} (${funcPatternResult.resultCount} results)`)
 
   const classResult = await benchmark('find_classes', () =>
-    symbolSearch.search({ kind: 'class', maxResults: 100 }, repos),
-  )
+    symbolSearch.search({ kind: 'class', maxResults: 100 }, repos))
   console.log(`  find_classes: ${formatMs(classResult.avgDuration)} (${classResult.resultCount} results)`)
 
   const typeResult = await benchmark('find_types', () =>
-    symbolSearch.search({ kind: 'type', maxResults: 100 }, repos),
-  )
+    symbolSearch.search({ kind: 'type', maxResults: 100 }, repos))
   console.log(`  find_types: ${formatMs(typeResult.avgDuration)} (${typeResult.resultCount} results)`)
 
   const interfaceResult = await benchmark('find_interfaces', () =>
-    symbolSearch.search({ kind: 'interface', maxResults: 100 }, repos),
-  )
+    symbolSearch.search({ kind: 'interface', maxResults: 100 }, repos))
   console.log(`  find_interfaces: ${formatMs(interfaceResult.avgDuration)} (${interfaceResult.resultCount} results)`)
 
   const exportedResult = await benchmark('find_functions (exported)', () =>
-    symbolSearch.search({ kind: 'function', exportedOnly: true, maxResults: 100 }, repos),
-  )
+    symbolSearch.search({ kind: 'function', exportedOnly: true, maxResults: 100 }, repos))
   console.log(`  find_functions (exported only): ${formatMs(exportedResult.avgDuration)} (${exportedResult.resultCount} results)`)
   console.log()
 
@@ -147,13 +143,11 @@ async function main() {
   console.log('─── API Route Search ───')
 
   const routeResult = await benchmark('find_api_routes', () =>
-    apiRouteSearch.search({ maxResults: 100 }, repos),
-  )
+    apiRouteSearch.search({ maxResults: 100 }, repos))
   console.log(`  find_api_routes (all): ${formatMs(routeResult.avgDuration)} (${routeResult.resultCount} results)`)
 
   const expressResult = await benchmark('find_api_routes (express)', () =>
-    apiRouteSearch.search({ framework: 'express', maxResults: 100 }, repos),
-  )
+    apiRouteSearch.search({ framework: 'express', maxResults: 100 }, repos))
   console.log(`  find_api_routes (express): ${formatMs(expressResult.avgDuration)} (${expressResult.resultCount} results)`)
   console.log()
 
@@ -167,7 +161,8 @@ async function main() {
   // Cleanup
   try {
     await repoManager.unregister(resolvedPath)
-  } catch { /* ignore */ }
+  }
+  catch { /* ignore */ }
 
   console.log('═══════════════════════════════════════════════════════════')
   console.log('  Benchmark complete!')
