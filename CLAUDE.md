@@ -83,6 +83,7 @@ MCP Server (index.ts)
 - Persists repository metadata via ConfigStore
 - Resolves repositories by ID, alias, or absolute path
 - Instant registration (git validation only, no metadata scanning)
+- `list()` and `get()` are synchronous methods (no async overhead)
 
 **Search Engines**
 
@@ -91,11 +92,15 @@ MCP Server (index.ts)
    - Uses `@ast-grep/napi` (Rust-powered) to parse code into ASTs
    - Pattern matching defined in `src/parsers/patterns/`
    - Detects export status and extracts signatures
+   - Parallel processing: repos in parallel, files in batches of 8
+   - Caches: regex patterns (100 max), export blocks (per repo)
 
 2. **APIRouteSearchEngine (src/search/api-route-search.ts)**
    - Specialized search for API endpoint definitions
    - Supports Express, Fastify, NestJS (decorators), Laravel (PHP facades)
    - Extracts HTTP method, path, handler name, and parameters
+   - Early framework detection skips non-route files before AST parsing
+   - Parallel processing: repos in parallel, files in batches of 8
 
 **Language Registry (src/parsers/language-registry.ts)**
 - Maps file extensions to ast-grep language types
@@ -228,12 +233,33 @@ ast-grep patterns use `$` metavariables:
 
 ## Important Implementation Details
 
+### Performance Optimizations
+
+**Parallel Processing**
+- Repositories are searched in parallel using `Promise.all`
+- Files within a repo are processed in batches of 8 concurrent files (`FILE_CONCURRENCY = 8`)
+- Errors in one repo/file don't affect others (graceful degradation)
+
+**Caching**
+- `patternRegexCache`: Caches compiled wildcard regex patterns (max 100 entries, then clears)
+- `exportBlockCache`: Caches parsed export blocks per file (cleared after each repo search)
+
+**Early Framework Detection (API Route Search)**
+Before expensive AST parsing, files are quickly filtered:
+- Check file extension for supported language
+- Check path for route indicators (`route`, `controller`)
+- For PHP: require `Route::` facade in content
+- For JS/TS: require route method patterns (`.get(`, `.post(`, `@Get(`, etc.)
+
+This skips 70-80% of files before AST parsing.
+
 ### Symbol Export Detection
-The SymbolSearchEngine uses a multi-layered approach:
+The SymbolSearchEngine uses a multi-layered approach with caching:
 1. Check AST ancestry for `export_statement` nodes
-2. Regex check for named exports: `export { foo }`
-3. Regex check for default exports: `export default foo`
-4. Fallback: check if line starts with `export`
+2. Use cached export block (parsed once per file):
+   - Named exports: `export { foo }`, `export { foo as bar }`, `export { type Foo }`
+   - Default exports: `export default foo`
+3. Fallback: check if line starts with `export`
 
 ### Repository Registration
 Registration is instant (< 1 second):
@@ -251,11 +277,16 @@ No file scanning or language detection occurs during registration.
 
 ## Language Expansion Strategy
 
-Currently, only TypeScript/JavaScript are fully supported for symbol search. Adding new languages requires:
-1. Add language to `src/constants.ts` (LANGUAGE_EXTENSIONS)
+Currently supported languages:
+- **TypeScript/JavaScript**: Full symbol search (.ts, .tsx, .js, .jsx, .mjs, .cjs)
+- **PHP**: Laravel route detection only (.php)
+
+Adding new languages requires:
+1. Add language to `SupportedLanguage` enum and `LANGUAGE_EXTENSIONS` map in `src/constants.ts`
 2. Add ast-grep language mapping in `src/parsers/language-registry.ts`
 3. Create pattern file in `src/parsers/patterns/` (e.g., `python.ts`)
 4. Define ast-grep patterns for each symbol kind
+5. Update early framework detection in `api-route-search.ts` if adding route support
 
 Refer to `docs/LANGUAGE_EXPANSION.md` and `ROADMAP.md` for planned language support.
 

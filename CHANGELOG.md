@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.0] - 2026-01-29
 
+### Added
+- **Performance**: Parallel repository processing (2-3x faster multi-repo searches)
+- **Performance**: Parallel file processing with batches of 8 concurrent files (3-5x faster on large repos)
+- **Performance**: Regex pattern caching with size limit to avoid recompilation
+- **Performance**: Export block caching per file to reduce regex operations
+- **Performance**: Early framework detection skips 70-80% of non-route files before AST parsing
+- **Tests**: Comprehensive test suite for search engines (symbol-search: 94%, api-route-search: 87%)
+
 ### Changed
 - **BREAKING**: Refocused on multi-repository AST-based search
 - **BREAKING**: Consolidated repository tools from 5 to 2:
@@ -39,6 +47,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added debug logging to all tool entry points for better tracing
 - `repositories` tool now validates that `remove` requires an `identifier`
 - `register_repository` response now accurately indicates whether repo was `registered` or `updated`
+- Early framework detection now includes all NestJS decorators (`@Put`, `@Delete`, `@Patch`) and Express `.all()` method
+- Export block parsing correctly handles `export { foo as bar }` and `export { type Foo }` syntax
+- Regex pattern cache now has size limit (100) to prevent memory leaks in long-running sessions
 
 ### Migration
 See [docs/MIGRATION.md](docs/MIGRATION.md) for detailed migration instructions.
