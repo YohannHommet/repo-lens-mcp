@@ -4,42 +4,42 @@ import type { SymbolSearchEngine } from '../search/symbol-search.js'
 import type { SymbolResult } from '../types/symbols.js'
 import { z } from 'zod'
 import { logger } from '../utils/logger.js'
-import { getLanguageForFile } from '../utils/path-utils.js'
 import { splitCommaSeparated } from '../utils/string-utils.js'
 
 /**
- * Helper to format symbol results as Markdown
+ * Format symbol results in a token-efficient format
  */
 function formatSymbolResults(results: SymbolResult[], kind: string, pattern: string | undefined): string {
   if (results.length === 0) {
-    return `No ${kind}s found matching "${pattern || '*'}"`
+    return `No ${kind}s found${pattern ? ` matching "${pattern}"` : ''}`
   }
 
-  let output = `## Found ${results.length} ${kind}s${pattern ? ` matching "${pattern}"` : ''}\n\n`
+  const lines: string[] = [`Found ${results.length} ${kind}s:`]
 
-  // Group by file
-  const grouped = results.reduce<Record<string, SymbolResult[]>>((acc, r) => {
-    const key = `${r.repositoryAlias || r.repository}:${r.relativePath}`
-    if (!acc[key]) {
-      acc[key] = []
-    }
-    acc[key].push(r)
+  // Group by repo then by file
+  const byRepo = results.reduce<Record<string, Record<string, SymbolResult[]>>>((acc, r) => {
+    const repo = r.repositoryAlias || r.repository
+    if (!acc[repo])
+      acc[repo] = {}
+    if (!acc[repo][r.relativePath])
+      acc[repo][r.relativePath] = []
+    acc[repo][r.relativePath].push(r)
     return acc
   }, {})
 
-  for (const [fileKey, matches] of Object.entries(grouped)) {
-    const [repo, path] = fileKey.split(':')
-    const lang = getLanguageForFile(path)
-    output += `### ${repo}:${path}\n`
-    output += `\`\`\`${lang}\n`
-    for (const m of matches) {
-      const lineInfo = `L${m.startLine}${m.endLine !== m.startLine ? `-${m.endLine}` : ''}`
-      output += `${lineInfo.padEnd(8)} | ${m.signature || m.name}${m.exported ? ' (exported)' : ''}\n`
+  for (const [repo, files] of Object.entries(byRepo)) {
+    lines.push(`\n[${repo}]`)
+    for (const [filePath, symbols] of Object.entries(files)) {
+      lines.push(`  ${filePath}`)
+      for (const s of symbols) {
+        const line = s.endLine !== s.startLine ? `${s.startLine}-${s.endLine}` : `${s.startLine}`
+        const exp = s.exported ? ' [E]' : ''
+        lines.push(`    L${line} ${s.signature || s.name}${exp}`)
+      }
     }
-    output += `\`\`\`\n\n`
   }
 
-  return output
+  return lines.join('\n')
 }
 
 export function registerSymbolTools(
