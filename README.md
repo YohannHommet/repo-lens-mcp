@@ -2,7 +2,7 @@
 
 # Repo Lens MCP Server
 
-**Your codebase, illuminated.**
+**Cross-repository code intelligence for developers.**
 
 [![NPM Version](https://img.shields.io/npm/v/repo-lens-mcp?style=for-the-badge&logo=npm&color=CB3837)](https://www.npmjs.com/package/repo-lens-mcp)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/YohannHommet/repo-lens-mcp/publish.yml?style=for-the-badge&logo=github-actions&logoColor=white)](https://github.com/YohannHommet/repo-lens-mcp/actions)
@@ -10,15 +10,24 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![MCP Ready](https://img.shields.io/badge/MCP-Ready-green?style=for-the-badge&logo=modelcontextprotocol&logoColor=white)](https://modelcontextprotocol.io)
 
-*Stop letting your LLM grep blindly. Upgrade to structural code intelligence!*
+*Search functions, classes, and API routes across all your local repositories without switching context.*
 
 </div>
 
 ---
 
-## Overview
+## Why Use This?
 
-This is a **Model Context Protocol (MCP)** server tailored for serious development workflows. It doesn't just "read files"; it understands project structure, maps entire repositories, and performs AST-based searches to find exactly what you need—instantly.
+**The problem:** You're working in your frontend repo and need to find a backend API endpoint. Or you're debugging and need to find where a function is defined across your monorepo. With Claude Code, you can search the current repository, but what about your other local projects?
+
+**The solution:** Repo Lens lets you register multiple local repositories and search across all of them simultaneously using AST-based structural search. Find the exact function signature, class definition, or API route you need without leaving your current context.
+
+### Use Cases
+
+- **Frontend + Backend development:** Search backend API routes while working in your frontend repo
+- **Microservices architecture:** Find function definitions across multiple services
+- **Monorepo navigation:** Search across packages without switching directories
+- **Code exploration:** Understand how different projects in your ecosystem connect
 
 ---
 
@@ -32,33 +41,44 @@ npx repo-lens-mcp
 
 ## Key Features
 
-Most code search tools are dumb using simple regex. This server uses **[ast-grep](https://ast-grep.github.io/)** (written in Rust) to parse your code into an Abstract Syntax Tree.
+### AST-Based Intelligence
 
-*   **Intelligence:** Distinguish between `class User` and `const User`. Find exported functions, not just the word "function".
-*   **Speed:** Powered by `ripgrep` for text and `ast-grep` for symbols. It screams.
-*   **Context:** Map API routes (Express, NestJS, output) to find entry points in seconds.
-*   **Security:** Sandboxed file access with symlink protection. No more `../../etc/passwd` accidents.
+Unlike grep-style text search, Repo Lens uses **[ast-grep](https://ast-grep.github.io/)** (written in Rust) to parse code into Abstract Syntax Trees:
+
+- **Structural accuracy:** Distinguish between `class User` and `const User`
+- **Export awareness:** Find only exported functions, or include private ones
+- **Signature extraction:** Get full function signatures, not just names
+
+### Multi-Repository Search
+
+Register any number of local git repositories and search them all at once:
+
+- Instant registration (< 1 second per repo)
+- Filter by repository, tags, or search all
+- Results include repository context
+
+### API Route Discovery
+
+Map all API endpoints across Express, NestJS, Fastify, and Laravel projects. Find that `/users/:id` endpoint in seconds.
 
 ---
 
 ## Roadmap
 
-We have big plans for the future of structural code intelligence.
+- **Phase 1 (Current):** Stability, Multi-repo, Basic AST
+- **Phase 2 (Q1 2026):** Cross-file references, Smart Context Summaries
+- **Phase 2.5 (Q1 2026):** Python support (symbol search + Flask/Django routes)
+- **Phase 3 (Q2 2026):** Semantic Search (Local Embeddings)
+- **Phase 3.5 (Q2 2026):** Go & Rust support
+- **Phase 4.5 (Q3 2026):** Java & C# support
 
-- **Phase 1 (Current):** Stability, Multi-repo, Basic AST.
-- **Phase 2 (Q1 2026):** Cross-file references, Smart Context Summaries, Live Indexing.
-- **Phase 3 (Q2 2026):** **Semantic Search (Local Embeddings)**, Hybrid Ranking.
-- **Phase 2.5 (Q1 2026):** Python support (symbol search + Flask/Django routes).
-- **Phase 3.5 (Q2 2026):** Go & Rust support.
-- **Phase 4.5 (Q3 2026):** Java & C# support.
-
-[👉 Check out the full ROADMAP.md](ROADMAP.md) • [🌐 Language Expansion Plan](docs/LANGUAGE_EXPANSION.md)
+[Check the full ROADMAP.md](ROADMAP.md) | [Language Expansion Plan](docs/LANGUAGE_EXPANSION.md)
 
 ---
 
 ## Installation
 
-### Option 1: Claude Desktop / VS Code (Recommended)
+### Claude Desktop / VS Code (Recommended)
 
 Add this to your `claude_desktop_config.json` (or VS Code MCP settings):
 
@@ -73,88 +93,116 @@ Add this to your `claude_desktop_config.json` (or VS Code MCP settings):
 }
 ```
 
-*Restart Claude, and you're ready to go.*
+Restart Claude, and you're ready to go.
 
-### Option 2: Local Development
-
-If you want to contribute or run from source:
+### Local Development
 
 ```bash
 git clone https://github.com/YohannHommet/repo-lens-mcp.git
 cd repo-lens-mcp
 npm install
 npm run build
-# Test it
-npx tsx scripts/test-server.ts
+npm run dev
 ```
 
 ---
 
 ## Capabilities
 
-### 1. Repository Management
-Don't scan your whole hard drive. Register specific projects to keep context clean.
-- `register_repository`: Add a repo to the search index (requires absolute path).
-- `list_repositories`: See what's currently active.
-- `unregister_repository`: Remove a repo from the index.
+### Repository Management (2 tools)
 
-### 2. AST Symbol Search (The Intelligence)
-Stop getting noise in your search results.
-- `find_functions`: Find logic (`function`, `ArrowFunction`, methods).
-- `find_classes`: Locate entities.
-- `find_api_routes`: **Killer Feature.** Instantly maps all API endpoints in Express/NestJS/Fastify apps.
-- `find_types`: TypeScript interfaces and types.
-- `find_variables`: Locate variable declarations.
-- `find_constants`: Locate constant declarations.
+Manage which repositories are available for cross-repo search:
 
-### 3. High-Performance Text Search
-For when you just need to find a string, fast.
-- `search_text`: Validated, secure wrapper around `ripgrep`.
+| Tool | Description |
+|:---|:---|
+| `register_repository` | Add or update a git repository (`force: true` to update existing) |
+| `repositories` | List, view, or remove repositories |
 
-### 4. File Operations
-- `get_file`: Read content with line-range support.
-- `get_file_info`: Metadata only (size, language, last modified).
-- `list_dir`: Browse repository structure.
+**`repositories` usage patterns:**
+- `repositories()` → List all repos
+- `repositories({ identifier: 'my-api' })` → Get details of one repo
+- `repositories({ identifier: 'my-api', remove: true })` → Remove that repo
+- `repositories({ tags: ['frontend'] })` → List repos filtered by tags
+
+### Symbol Search (3 tools)
+
+AST-based structural search powered by ast-grep:
+
+| Tool | Description |
+|:---|:---|
+| `find_functions` | Find function/method definitions (supports wildcards like `handle*`) |
+| `find_classes` | Find class definitions |
+| `find_types` | Find TypeScript interfaces and type aliases |
+
+### API Route Discovery (1 tool)
+
+| Tool | Description |
+|:---|:---|
+| `find_api_routes` | Map API endpoints across Express, NestJS, Fastify, Laravel |
 
 ---
 
 ## Usage Examples
 
-Once installed, your LLM can use the following commands:
+### 1. Register Your Projects
 
-### 1. Indexing a Project
-> "Register the repository at /path/to/my-project"
-Calls `register_repository(path: "/path/to/my-project")`
+> "Register the backend at /path/to/backend-api"
 
-### 2. Finding an API Endpoint
+```
+register_repository(path: "/path/to/backend-api", alias: "backend")
+```
+
+### 2. Find an API Endpoint
+
 > "Find the Express route that handles POST requests to /login"
-Calls `find_api_routes(framework: "express", method: "POST", pathPattern: "/login")`
 
-### 3. Understanding a Class
-> "Find the definition of the User class and show me its methods"
-Calls `find_classes(name: "User")` followed by `get_file` for the relevant lines.
+```
+find_api_routes(framework: "express", method: "POST", pathPattern: "/login")
+```
+
+### 3. Search Functions Across Repos
+
+> "Find all functions starting with 'handle' across all my registered repos"
+
+```
+find_functions(name: "handle*")
+```
+
+### 4. Find a Specific Class
+
+> "Where is the UserService class defined?"
+
+```
+find_classes(name: "UserService")
+```
 
 ---
 
 ## Configuration
 
-You can tweak the server by passing environment variables in your JSON config:
+Minimal configuration via environment variables:
 
 | Variable | Default | Description |
 |:---|:---|:---|
-| `MCP_CACHE_ENABLED` | `true` | Keep it `true` unless you like slow searches. |
-| `MCP_LOG_LEVEL` | `info` | Set to `debug` if things go south. |
-| `MCP_SEARCH_TIMEOUT_MS` | `30000` | Max time before killing a search. |
+| `MCP_LOG_LEVEL` | `info` | Log level: `debug`, `info`, `warn`, `error` |
+| `MCP_REPO_SEARCH_CONFIG_DIR` | `~/.config/mcp-repo-search` | Config directory for repository data |
 
 Example:
 ```json
 {
   "env": {
-    "MCP_LOG_LEVEL": "error",
-    "MCP_CACHE_ENABLED": "true"
+    "MCP_LOG_LEVEL": "debug"
   }
 }
 ```
+
+---
+
+## What About Text Search / File Operations?
+
+Repo Lens focuses on **multi-repository AST-based search**. For text search and file operations within your current repository, use Claude Code's built-in tools (Grep, Read, Glob) which are optimized for single-repo use.
+
+This separation keeps Repo Lens fast and focused on what it does best: cross-repository structural code intelligence.
 
 ---
 
@@ -162,11 +210,10 @@ Example:
 
 **AGPL-3.0**
 
-This software is free to use. However, if you modify it and distribute it (or run it as a network service), you **must** share your source code under the same license.
-**Your code is yours; this server's code must remain open.**
+This software is free to use. If you modify and distribute it (or run it as a network service), you must share your source code under the same license.
 
 ---
 
 <p align="center">
-  Built with ❤️ by Yohann Hommet
+  Built with care by Yohann Hommet
 </p>

@@ -1,57 +1,49 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { describe, expect, it, vi } from 'vitest'
-import { z } from 'zod'
 import { registerRepositoryTools } from './repository-tools.js'
-import { registerSearchTools } from './search-tools.js'
 
 // Mock dependencies
 const mockRepoManager = {
   register: vi.fn(),
   unregister: vi.fn(),
   list: vi.fn(),
+  get: vi.fn(),
   resolveIdentifiers: vi.fn(),
 }
-
-const mockSearchCache = {
-  clear: vi.fn(),
-  get: vi.fn(),
-  set: vi.fn(),
-  generateKey: vi.fn(),
-}
-
-const mockConfig = {
-  cacheEnabled: true,
-}
-
-// Mock engines
-const mockTextSearch = { search: vi.fn() }
 
 // Mock McpServer
 const mockServer = {
   tool: vi.fn(),
 } as unknown as McpServer
 
-describe('tool Definitions', () => {
-  it('should register updated repository tools', () => {
-    registerRepositoryTools(mockServer, mockRepoManager as any, mockSearchCache as any)
+describe('tool definitions', () => {
+  it('should register repository tools with comma-separated string parameters', () => {
+    registerRepositoryTools(mockServer, mockRepoManager as any)
 
-    // Verify list_registered_repositories registration
-    const call = (mockServer.tool as any).mock.calls.find((c: any) => c[0] === 'list_registered_repositories')
-    expect(call).toBeDefined()
-    expect(call[2].tagFilter).toBeDefined()
-    expect(call[2].tagFilter instanceof z.ZodString || call[2].tagFilter instanceof z.ZodOptional).toBeTruthy()
-
-    // Verify register_repository uses string tags
+    // Verify register_repository registration
     const regCall = (mockServer.tool as any).mock.calls.find((c: any) => c[0] === 'register_repository')
     expect(regCall).toBeDefined()
     expect(regCall[2].tags).toBeDefined()
+    expect(regCall[2].force).toBeDefined()
+
+    // Verify repositories tool registration
+    const reposCall = (mockServer.tool as any).mock.calls.find((c: any) => c[0] === 'repositories')
+    expect(reposCall).toBeDefined()
+    expect(reposCall[2].identifier).toBeDefined()
+    expect(reposCall[2].remove).toBeDefined()
+    expect(reposCall[2].tagFilter).toBeDefined()
   })
 
-  it('should register updated search tools with string filters', () => {
-    registerSearchTools(mockServer, mockRepoManager as any, mockTextSearch as any, mockSearchCache as any, mockConfig as any)
+  it('should register exactly 2 repository tools', () => {
+    const toolServer = {
+      tool: vi.fn(),
+    } as unknown as McpServer
 
-    const call = (mockServer.tool as any).mock.calls.find((c: any) => c[0] === 'search_text')
-    expect(call).toBeDefined()
-    expect(call[2].repoFilter).toBeDefined()
+    registerRepositoryTools(toolServer, mockRepoManager as any)
+
+    expect(toolServer.tool).toHaveBeenCalledTimes(2)
+    const toolNames = (toolServer.tool as any).mock.calls.map((c: any) => c[0])
+    expect(toolNames).toContain('register_repository')
+    expect(toolNames).toContain('repositories')
   })
 })

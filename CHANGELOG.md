@@ -5,6 +5,55 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-01-29
+
+### Added
+- **Performance**: Parallel repository processing (2-3x faster multi-repo searches)
+- **Performance**: Parallel file processing with batches of 8 concurrent files (3-5x faster on large repos)
+- **Performance**: Regex pattern caching with size limit to avoid recompilation
+- **Performance**: Export block caching per file to reduce regex operations
+- **Performance**: Early framework detection skips 70-80% of non-route files before AST parsing
+- **Tests**: Comprehensive test suite for search engines (symbol-search: 94%, api-route-search: 87%)
+
+### Changed
+- **BREAKING**: Refocused on multi-repository AST-based search
+- **BREAKING**: Consolidated repository tools from 5 to 2:
+  - `register_repository` now supports `force: true` to update existing repos (replaces `refresh_repository`)
+  - New `repositories` tool combines list, get, and remove operations
+- Repository registration is now instant (< 1 second) - no metadata scanning
+- Simplified configuration to 2 environment variables only
+- Repository data structure: replaced `languages`, `fileCount`, `lastScanned` with `registeredAt`
+- Converted all array parameters to comma-separated strings for better MCP client compatibility
+
+### Removed
+- **BREAKING**: `unregister_repository` tool - use `repositories({ identifier, remove: true })`
+- **BREAKING**: `list_repositories` tool - use `repositories()`
+- **BREAKING**: `get_repository_info` tool - use `repositories({ identifier })`
+- **BREAKING**: `refresh_repository` tool - use `register_repository({ force: true })`
+- **BREAKING**: `search_text` tool - use Claude Code's built-in `Grep` tool
+- **BREAKING**: `get_file` tool - use Claude Code's built-in `Read` tool
+- **BREAKING**: `get_file_info` tool - use Claude Code's built-in `Read` tool
+- **BREAKING**: `list_dir` tool - use Claude Code's built-in `Glob` tool
+- **BREAKING**: `find_enums` tool - use `find_types` or `Grep`
+- **BREAKING**: `find_variables` tool - use Claude Code's `Grep` tool
+- **BREAKING**: `find_constants` tool - use Claude Code's `Grep` tool
+- Caching system (LRU cache) - minimal benefit in typical usage
+- `@vscode/ripgrep` dependency (~50MB package size reduction)
+- `lru-cache` dependency
+- Configuration options: `MCP_CACHE_ENABLED`, `MCP_CACHE_TTL`, `MCP_CACHE_MAX_ENTRIES`, `MCP_SEARCH_TIMEOUT_MS`, `MCP_MAX_SEARCH_RESULTS`, `MCP_MAX_FILE_SIZE`
+
+### Fixed
+- Resolved parameter type issues causing input loops in MCP clients
+- Added debug logging to all tool entry points for better tracing
+- `repositories` tool now validates that `remove` requires an `identifier`
+- `register_repository` response now accurately indicates whether repo was `registered` or `updated`
+- Early framework detection now includes all NestJS decorators (`@Put`, `@Delete`, `@Patch`) and Express `.all()` method
+- Export block parsing correctly handles `export { foo as bar }` and `export { type Foo }` syntax
+- Regex pattern cache now has size limit (100) to prevent memory leaks in long-running sessions
+
+### Migration
+See [docs/MIGRATION.md](docs/MIGRATION.md) for detailed migration instructions.
+
 ## [0.1.2] - 2026-01-27
 
 ### Stabilized
@@ -56,4 +105,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Symlink traversal protection enabled
 - Input validation on all user-provided paths
 
+[0.2.0]: https://github.com/YohannHommet/repo-lens-mcp/releases/tag/v0.2.0
+[0.1.2]: https://github.com/YohannHommet/repo-lens-mcp/releases/tag/v0.1.2
+[0.1.1-alpha]: https://github.com/YohannHommet/repo-lens-mcp/releases/tag/v0.1.1-alpha
 [0.1.0-alpha]: https://github.com/YohannHommet/repo-lens-mcp/releases/tag/v0.1.0-alpha

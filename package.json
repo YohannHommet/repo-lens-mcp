@@ -1,8 +1,8 @@
 {
   "name": "repo-lens-mcp",
   "type": "module",
-  "version": "0.1.2",
-  "description": "MCP server for intelligent repository search and code analysis",
+  "version": "0.2.0",
+  "description": "MCP server for multi-repository AST-based symbol search and API route discovery",
   "author": "Yohann Hommet <yohann.hommet@outlook.fr>",
   "license": "AGPL-3.0-only",
   "funding": {
@@ -22,18 +22,20 @@
     "mcp-server",
     "claude",
     "code-search",
-    "repository",
+    "multi-repository",
+    "cross-repo",
+    "monorepo",
+    "microservices",
     "ast",
     "ast-grep",
-    "ripgrep",
     "repo-lens-mcp",
     "developer-tools",
     "llm",
-    "openai",
     "anthropic",
     "model-context-protocol",
     "code-analysis",
-    "symbol-search"
+    "symbol-search",
+    "api-routes"
   ],
   "exports": {
     ".": {
@@ -74,10 +76,8 @@
   "dependencies": {
     "@ast-grep/napi": "^0.40.5",
     "@modelcontextprotocol/sdk": "^1.25.3",
-    "@vscode/ripgrep": "^1.17.0",
     "async-mutex": "^0.5.0",
     "fast-glob": "^3.3.3",
-    "lru-cache": "^11.2.4",
     "simple-git": "^3.30.0",
     "zod": "^4.3.6"
   },

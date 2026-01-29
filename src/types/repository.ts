@@ -10,16 +10,13 @@ export interface Repository {
   alias?: string
   tags: string[]
   gitInfo: GitInfo
-  languages: string[]
-  lastScanned: Date
-  fileCount: number
-}
-
-export interface RegisterOptions {
-  alias?: string
-  tags?: string[]
+  registeredAt: Date
 }
 
 export interface RepositoryFilter {
   tags?: string[]
+}
+
+export interface RegisterResult extends Repository {
+  action: 'registered' | 'updated'
 }

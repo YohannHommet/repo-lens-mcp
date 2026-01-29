@@ -38,7 +38,7 @@ export class ConfigStore {
       for (const serialized of config.repositories) {
         const repo: Repository = {
           ...serialized,
-          lastScanned: new Date(serialized.lastScanned),
+          registeredAt: new Date(serialized.registeredAt),
         }
         repositories.set(repo.id, repo)
       }
@@ -64,7 +64,7 @@ export class ConfigStore {
         version: 1,
         repositories: Array.from(repositories.values()).map(repo => ({
           ...repo,
-          lastScanned: repo.lastScanned.toISOString(),
+          registeredAt: repo.registeredAt.toISOString(),
         })),
       }
 

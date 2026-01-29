@@ -1,8 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import type { ServerConfig } from '../config/types.js'
 import type { RepositoryManager } from '../core/repository-manager.js'
 import type { SymbolSearchEngine } from '../search/symbol-search.js'
-import type { SearchCache } from '../utils/cache.js'
+import type { SymbolResult } from '../types/symbols.js'
 import { z } from 'zod'
 import { logger } from '../utils/logger.js'
 import { getLanguageForFile } from '../utils/path-utils.js'
@@ -11,15 +10,15 @@ import { splitCommaSeparated } from '../utils/string-utils.js'
 /**
  * Helper to format symbol results as Markdown
  */
-function formatSymbolResults(results: any[], kind: string, pattern: string | undefined, isCached: boolean): string {
+function formatSymbolResults(results: SymbolResult[], kind: string, pattern: string | undefined): string {
   if (results.length === 0) {
     return `No ${kind}s found matching "${pattern || '*'}"`
   }
 
-  let output = `## Found ${results.length} ${kind}s${pattern ? ` matching "${pattern}"` : ''}${isCached ? ' (cached)' : ''}\n\n`
+  let output = `## Found ${results.length} ${kind}s${pattern ? ` matching "${pattern}"` : ''}\n\n`
 
   // Group by file
-  const grouped = results.reduce((acc: any, r: any) => {
+  const grouped = results.reduce<Record<string, SymbolResult[]>>((acc, r) => {
     const key = `${r.repositoryAlias || r.repository}:${r.relativePath}`
     if (!acc[key]) {
       acc[key] = []
@@ -33,7 +32,7 @@ function formatSymbolResults(results: any[], kind: string, pattern: string | und
     const lang = getLanguageForFile(path)
     output += `### ${repo}:${path}\n`
     output += `\`\`\`${lang}\n`
-    for (const m of (matches as any[])) {
+    for (const m of matches) {
       const lineInfo = `L${m.startLine}${m.endLine !== m.startLine ? `-${m.endLine}` : ''}`
       output += `${lineInfo.padEnd(8)} | ${m.signature || m.name}${m.exported ? ' (exported)' : ''}\n`
     }
@@ -47,8 +46,6 @@ export function registerSymbolTools(
   server: McpServer,
   repoManager: RepositoryManager,
   symbolSearch: SymbolSearchEngine,
-  searchCache: SearchCache<any>,
-  config: ServerConfig,
 ) {
   server.tool(
     'find_functions',
@@ -73,29 +70,6 @@ export function registerSymbolTools(
           }
         }
 
-        // Check cache
-        const cacheKey = searchCache.generateKey('symbol:function', {
-          name,
-          repos: repositories.map(r => r.id).sort(),
-          language,
-          exportedOnly,
-          maxResults,
-        })
-
-        if (config.cacheEnabled) {
-          const cached = searchCache.get(cacheKey)
-          if (cached) {
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text: formatSymbolResults(cached, 'function', name, true),
-                },
-              ],
-            }
-          }
-        }
-
         const results = await symbolSearch.search(
           {
             kind: 'function',
@@ -107,15 +81,11 @@ export function registerSymbolTools(
           repositories,
         )
 
-        if (config.cacheEnabled) {
-          searchCache.set(cacheKey, results)
-        }
-
         return {
           content: [
             {
               type: 'text',
-              text: formatSymbolResults(results, 'function', name, false),
+              text: formatSymbolResults(results, 'function', name),
             },
           ],
         }
@@ -152,29 +122,6 @@ export function registerSymbolTools(
           }
         }
 
-        // Check cache
-        const cacheKey = searchCache.generateKey('symbol:class', {
-          name,
-          repos: repositories.map(r => r.id).sort(),
-          language,
-          exportedOnly,
-          maxResults,
-        })
-
-        if (config.cacheEnabled) {
-          const cached = searchCache.get(cacheKey)
-          if (cached) {
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text: formatSymbolResults(cached, 'class', name, true),
-                },
-              ],
-            }
-          }
-        }
-
         const results = await symbolSearch.search(
           {
             kind: 'class',
@@ -186,15 +133,11 @@ export function registerSymbolTools(
           repositories,
         )
 
-        if (config.cacheEnabled) {
-          searchCache.set(cacheKey, results)
-        }
-
         return {
           content: [
             {
               type: 'text',
-              text: formatSymbolResults(results, 'class', name, false),
+              text: formatSymbolResults(results, 'class', name),
             },
           ],
         }
@@ -231,29 +174,6 @@ export function registerSymbolTools(
           }
         }
 
-        // Check cache
-        const cacheKey = searchCache.generateKey('symbol:types', {
-          name,
-          repos: repositories.map(r => r.id).sort(),
-          language,
-          exportedOnly,
-          maxResults,
-        })
-
-        if (config.cacheEnabled) {
-          const cached = searchCache.get(cacheKey)
-          if (cached) {
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text: formatSymbolResults(cached, 'type', name, true),
-                },
-              ],
-            }
-          }
-        }
-
         // Search both types and interfaces
         const [typeResults, interfaceResults] = await Promise.all([
           symbolSearch.search(
@@ -268,252 +188,11 @@ export function registerSymbolTools(
 
         const results = [...typeResults, ...interfaceResults]
 
-        if (config.cacheEnabled) {
-          searchCache.set(cacheKey, results)
-        }
-
         return {
           content: [
             {
               type: 'text',
-              text: formatSymbolResults(results, 'type', name, false),
-            },
-          ],
-        }
-      }
-      catch (error) {
-        return {
-          content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
-          isError: true,
-        }
-      }
-    },
-  )
-
-  server.tool(
-    'find_enums',
-    'Find enum definitions across repositories using AST analysis',
-    {
-      name: z.string().optional().describe('Enum name pattern'),
-      repoFilter: z.string().optional().describe('Repository aliases or paths to search (comma-separated)'),
-      language: z.string().optional().describe('Filter by language'),
-      exportedOnly: z.boolean().optional().describe('Only return exported enums'),
-      maxResults: z.number().optional().describe('Maximum results'),
-    },
-    async ({ name, repoFilter, language, exportedOnly, maxResults }) => {
-      logger.debug('Tool find_enums called', { name, repoFilter, language })
-      try {
-        const repos = splitCommaSeparated(repoFilter)
-        const repositories = repoManager.resolveIdentifiers(repos)
-
-        if (repositories.length === 0) {
-          return {
-            content: [{ type: 'text', text: 'No repositories found.' }],
-            isError: true,
-          }
-        }
-
-        // Check cache
-        const cacheKey = searchCache.generateKey('symbol:enum', {
-          name,
-          repos: repositories.map(r => r.id).sort(),
-          language,
-          exportedOnly,
-          maxResults,
-        })
-
-        if (config.cacheEnabled) {
-          const cached = searchCache.get(cacheKey)
-          if (cached) {
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text: formatSymbolResults(cached, 'enum', name, true),
-                },
-              ],
-            }
-          }
-        }
-
-        const results = await symbolSearch.search(
-          {
-            kind: 'enum',
-            name,
-            language,
-            exportedOnly: exportedOnly ?? false,
-            maxResults: maxResults ?? 100,
-          },
-          repositories,
-        )
-
-        if (config.cacheEnabled) {
-          searchCache.set(cacheKey, results)
-        }
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: formatSymbolResults(results, 'enum', name, false),
-            },
-          ],
-        }
-      }
-      catch (error) {
-        return {
-          content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
-          isError: true,
-        }
-      }
-    },
-  )
-
-  server.tool(
-    'find_variables',
-    'Find variable declarations across repositories using AST analysis',
-    {
-      name: z.string().optional().describe('Variable name pattern'),
-      repoFilter: z.string().optional().describe('Repository aliases or paths to search (comma-separated)'),
-      language: z.string().optional().describe('Filter by language'),
-      exportedOnly: z.boolean().optional().describe('Only return exported variables'),
-      maxResults: z.number().optional().describe('Maximum results'),
-    },
-    async ({ name, repoFilter, language, exportedOnly, maxResults }) => {
-      logger.debug('Tool find_variables called', { name, repoFilter, language })
-      try {
-        const repos = splitCommaSeparated(repoFilter)
-        const repositories = repoManager.resolveIdentifiers(repos)
-
-        if (repositories.length === 0) {
-          return {
-            content: [{ type: 'text', text: 'No repositories found.' }],
-            isError: true,
-          }
-        }
-
-        // Check cache
-        const cacheKey = searchCache.generateKey('symbol:variable', {
-          name,
-          repos: repositories.map(r => r.id).sort(),
-          language,
-          exportedOnly,
-          maxResults,
-        })
-
-        if (config.cacheEnabled) {
-          const cached = searchCache.get(cacheKey)
-          if (cached) {
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text: formatSymbolResults(cached, 'variable', name, true),
-                },
-              ],
-            }
-          }
-        }
-
-        const results = await symbolSearch.search(
-          {
-            kind: 'variable',
-            name,
-            language,
-            exportedOnly: exportedOnly ?? false,
-            maxResults: maxResults ?? 100,
-          },
-          repositories,
-        )
-
-        if (config.cacheEnabled) {
-          searchCache.set(cacheKey, results)
-        }
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: formatSymbolResults(results, 'variable', name, false),
-            },
-          ],
-        }
-      }
-      catch (error) {
-        return {
-          content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
-          isError: true,
-        }
-      }
-    },
-  )
-
-  server.tool(
-    'find_constants',
-    'Find constant declarations across repositories using AST analysis',
-    {
-      name: z.string().optional().describe('Constant name pattern'),
-      repoFilter: z.string().optional().describe('Repository aliases or paths to search (comma-separated)'),
-      language: z.string().optional().describe('Filter by language'),
-      exportedOnly: z.boolean().optional().describe('Only return exported constants'),
-      maxResults: z.number().optional().describe('Maximum results'),
-    },
-    async ({ name, repoFilter, language, exportedOnly, maxResults }) => {
-      logger.debug('Tool find_constants called', { name, repoFilter, language })
-      try {
-        const repos = splitCommaSeparated(repoFilter)
-        const repositories = repoManager.resolveIdentifiers(repos)
-
-        if (repositories.length === 0) {
-          return {
-            content: [{ type: 'text', text: 'No repositories found.' }],
-            isError: true,
-          }
-        }
-
-        // Check cache
-        const cacheKey = searchCache.generateKey('symbol:constant', {
-          name,
-          repos: repositories.map(r => r.id).sort(),
-          language,
-          exportedOnly,
-          maxResults,
-        })
-
-        if (config.cacheEnabled) {
-          const cached = searchCache.get(cacheKey)
-          if (cached) {
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text: formatSymbolResults(cached, 'constant', name, true),
-                },
-              ],
-            }
-          }
-        }
-
-        const results = await symbolSearch.search(
-          {
-            kind: 'constant',
-            name,
-            language,
-            exportedOnly: exportedOnly ?? false,
-            maxResults: maxResults ?? 100,
-          },
-          repositories,
-        )
-
-        if (config.cacheEnabled) {
-          searchCache.set(cacheKey, results)
-        }
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: formatSymbolResults(results, 'constant', name, false),
+              text: formatSymbolResults(results, 'type', name),
             },
           ],
         }
