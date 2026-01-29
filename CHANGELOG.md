@@ -37,6 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Resolved parameter type issues causing input loops in MCP clients
 - Added debug logging to all tool entry points for better tracing
+- `repositories` tool now validates that `remove` requires an `identifier`
+- `register_repository` response now accurately indicates whether repo was `registered` or `updated`
 
 ### Migration
 See [docs/MIGRATION.md](docs/MIGRATION.md) for detailed migration instructions.
