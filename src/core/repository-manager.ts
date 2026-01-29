@@ -1,10 +1,16 @@
-import type { RegisterOptions, Repository, RepositoryFilter } from '../types/repository.js'
+import type { Repository, RepositoryFilter } from '../types/repository.js'
 
 import { randomUUID } from 'node:crypto'
 import { logger } from '../utils/logger.js'
 import { isSubPath, normalizePath } from '../utils/path-utils.js'
 import { ConfigStore } from './config-store.js'
 import { RepositoryScanner } from './repository-scanner.js'
+
+export interface RegisterOptions {
+  alias?: string
+  tags?: string[]
+  force?: boolean
+}
 
 export class RepositoryManager {
   private repositories: Map<string, Repository> = new Map()
@@ -24,13 +30,23 @@ export class RepositoryManager {
     const normalizedPath = await this.scanner.validatePath(path)
 
     // Check if already registered
+    let existingRepo: Repository | null = null
     for (const repo of this.repositories.values()) {
       if (repo.path === normalizedPath) {
-        throw new Error(`Repository already registered: ${path}`)
+        existingRepo = repo
+        break
       }
     }
 
-    // Check alias uniqueness
+    if (existingRepo) {
+      if (options?.force) {
+        // Update existing repo
+        return this.update(existingRepo, options)
+      }
+      throw new Error(`Repository already registered: ${path}`)
+    }
+
+    // Check alias uniqueness for new registrations
     if (options?.alias) {
       for (const repo of this.repositories.values()) {
         if (repo.alias === options.alias) {
@@ -58,6 +74,33 @@ export class RepositoryManager {
     return repository
   }
 
+  private async update(repo: Repository, options: RegisterOptions): Promise<Repository> {
+    // Check alias uniqueness if changing
+    if (options.alias && options.alias !== repo.alias) {
+      for (const r of this.repositories.values()) {
+        if (r.alias === options.alias && r.id !== repo.id) {
+          throw new Error(`Alias already in use: ${options.alias}`)
+        }
+      }
+      repo.alias = options.alias
+    }
+
+    // Update tags if provided
+    if (options.tags !== undefined) {
+      repo.tags = options.tags
+    }
+
+    // Refresh git info
+    const { gitInfo } = await this.scanner.scan(repo.path)
+    repo.gitInfo = gitInfo
+
+    await this.store.save(this.repositories)
+
+    logger.info('Repository updated', { id: repo.id, path: repo.path })
+
+    return repo
+  }
+
   async unregister(identifier: string): Promise<void> {
     const repo = this.resolveIdentifier(identifier)
     if (!repo) {
@@ -82,23 +125,6 @@ export class RepositoryManager {
 
   async get(identifier: string): Promise<Repository | null> {
     return this.resolveIdentifier(identifier)
-  }
-
-  async refresh(identifier: string): Promise<Repository> {
-    const repo = this.resolveIdentifier(identifier)
-    if (!repo) {
-      throw new Error(`Repository not found: ${identifier}`)
-    }
-
-    const { gitInfo } = await this.scanner.scan(repo.path)
-
-    repo.gitInfo = gitInfo
-
-    await this.store.save(this.repositories)
-
-    logger.info('Repository refreshed', { id: repo.id })
-
-    return repo
   }
 
   resolveIdentifier(identifier: string): Repository | null {

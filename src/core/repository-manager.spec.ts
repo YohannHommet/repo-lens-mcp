@@ -89,20 +89,34 @@ describe('repositoryManager', () => {
     })
   })
 
-  describe('refresh', () => {
-    it('should update repository metadata', async () => {
-      const repo = await repoManager.register('/repo1')
+  describe('register with force', () => {
+    it('should update existing repo when force=true', async () => {
+      const repo = await repoManager.register('/repo1', { alias: 'old-alias' })
 
-      // Change scan result
+      // Change scan result for the update
       mockScan.mockResolvedValueOnce({
         gitInfo: { branch: 'develop', lastCommit: 'def', remote: 'origin' },
       })
 
-      await repoManager.refresh(repo.id)
+      const updated = await repoManager.register('/repo1', {
+        alias: 'new-alias',
+        tags: ['updated'],
+        force: true,
+      })
 
-      const updated = await repoManager.get(repo.id)
-      expect(updated?.gitInfo.branch).toBe('develop')
-      expect(mockSave).toHaveBeenCalledTimes(2) // 1 register + 1 refresh
+      expect(updated.id).toBe(repo.id) // Same repo
+      expect(updated.alias).toBe('new-alias')
+      expect(updated.tags).toEqual(['updated'])
+      expect(updated.gitInfo.branch).toBe('develop')
+      expect(mockSave).toHaveBeenCalledTimes(2) // 1 register + 1 update
+    })
+
+    it('should throw if force=false and repo exists', async () => {
+      await repoManager.register('/repo1')
+
+      await expect(repoManager.register('/repo1', { force: false }))
+        .rejects
+        .toThrow('Repository already registered')
     })
   })
 })

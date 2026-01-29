@@ -10,17 +10,18 @@ export function registerRepositoryTools(
 ) {
   server.tool(
     'register_repository',
-    'Register a local git repository for searching across projects',
+    'Register a local git repository for cross-repository search',
     {
       path: z.string().describe('Absolute path to the git repository'),
       alias: z.string().optional().describe('User-friendly name for the repository'),
       tags: z.string().optional().describe('Tags for filtering (comma-separated, e.g. "frontend,typescript")'),
+      force: z.boolean().optional().describe('Update if already registered (default: false)'),
     },
-    async ({ path, alias, tags: tagsString }) => {
-      logger.debug('Tool register_repository called', { path, alias, tags: tagsString })
+    async ({ path, alias, tags: tagsString, force }) => {
+      logger.debug('Tool register_repository called', { path, alias, tags: tagsString, force })
       try {
         const tags = splitCommaSeparated(tagsString) || []
-        const repo = await repoManager.register(path, { alias, tags })
+        const repo = await repoManager.register(path, { alias, tags, force })
         return {
           content: [
             {
@@ -28,6 +29,7 @@ export function registerRepositoryTools(
               text: JSON.stringify(
                 {
                   success: true,
+                  action: repo._action || (force ? 'updated' : 'registered'),
                   repository: {
                     id: repo.id,
                     path: repo.path,
@@ -54,36 +56,57 @@ export function registerRepositoryTools(
   )
 
   server.tool(
-    'unregister_repository',
-    'Remove a repository from the search pool',
+    'repositories',
+    'List, view, or remove registered repositories',
     {
-      identifier: z.string().describe('Repository ID, alias, or path'),
+      identifier: z.string().optional().describe('Get or remove a specific repo by ID, alias, or path'),
+      remove: z.boolean().optional().describe('Remove the identified repository (requires identifier)'),
+      tagFilter: z.string().optional().describe('Filter list by tags (comma-separated, e.g. "frontend,typescript")'),
     },
-    async ({ identifier }) => {
+    async ({ identifier, remove, tagFilter }) => {
+      logger.debug('Tool repositories called', { identifier, remove, tagFilter })
       try {
-        await repoManager.unregister(identifier)
-        return {
-          content: [{ type: 'text', text: JSON.stringify({ success: true }) }],
+        // Validate: remove requires identifier
+        if (remove && !identifier) {
+          return {
+            content: [{ type: 'text', text: 'Error: remove requires an identifier' }],
+            isError: true,
+          }
         }
-      }
-      catch (error) {
-        return {
-          content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
-          isError: true,
-        }
-      }
-    },
-  )
 
-  server.tool(
-    'list_registered_repositories',
-    'List all registered repositories in the search index',
-    {
-      tagFilter: z.string().optional().describe('Filter by tags (comma-separated, e.g. "frontend,typescript")'),
-    },
-    async ({ tagFilter }) => {
-      logger.debug('Tool list_registered_repositories called', { tagFilter })
-      try {
+        // Remove a specific repository
+        if (identifier && remove) {
+          await repoManager.unregister(identifier)
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({ success: true, removed: identifier }),
+              },
+            ],
+          }
+        }
+
+        // Get details of a specific repository
+        if (identifier) {
+          const repo = await repoManager.get(identifier)
+          if (!repo) {
+            return {
+              content: [{ type: 'text', text: 'Repository not found' }],
+              isError: true,
+            }
+          }
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(repo, null, 2),
+              },
+            ],
+          }
+        }
+
+        // List all repositories (optionally filtered by tags)
         const tags = splitCommaSeparated(tagFilter)
         const repos = await repoManager.list({ tags })
         if (repos.length === 0) {
@@ -108,78 +131,6 @@ export function registerRepositoryTools(
             {
               type: 'text',
               text: output.trim(),
-            },
-          ],
-        }
-      }
-      catch (error) {
-        return {
-          content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
-          isError: true,
-        }
-      }
-    },
-  )
-
-  server.tool(
-    'get_repository_info',
-    'Get detailed information about a repository',
-    {
-      identifier: z.string().describe('Repository ID, alias, or path'),
-    },
-    async ({ identifier }) => {
-      try {
-        const repo = await repoManager.get(identifier)
-        if (!repo) {
-          return {
-            content: [{ type: 'text', text: 'Repository not found' }],
-            isError: true,
-          }
-        }
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(repo, null, 2),
-            },
-          ],
-        }
-      }
-      catch (error) {
-        return {
-          content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
-          isError: true,
-        }
-      }
-    },
-  )
-
-  server.tool(
-    'refresh_repository',
-    'Re-scan a repository to update git information',
-    {
-      identifier: z.string().describe('Repository ID, alias, or path'),
-    },
-    async ({ identifier }) => {
-      try {
-        const repo = await repoManager.refresh(identifier)
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(
-                {
-                  success: true,
-                  repository: {
-                    id: repo.id,
-                    branch: repo.gitInfo.branch,
-                    lastCommit: repo.gitInfo.lastCommit,
-                  },
-                },
-                null,
-                2,
-              ),
             },
           ],
         }

@@ -13,11 +13,6 @@ export interface Repository {
   registeredAt: Date
 }
 
-export interface RegisterOptions {
-  alias?: string
-  tags?: string[]
-}
-
 export interface RepositoryFilter {
   tags?: string[]
 }

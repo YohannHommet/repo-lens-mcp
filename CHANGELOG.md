@@ -9,12 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **BREAKING**: Refocused on multi-repository AST-based search
+- **BREAKING**: Consolidated repository tools from 5 to 2:
+  - `register_repository` now supports `force: true` to update existing repos (replaces `refresh_repository`)
+  - New `repositories` tool combines list, get, and remove operations
 - Repository registration is now instant (< 1 second) - no metadata scanning
 - Simplified configuration to 2 environment variables only
 - Repository data structure: replaced `languages`, `fileCount`, `lastScanned` with `registeredAt`
 - Converted all array parameters to comma-separated strings for better MCP client compatibility
 
 ### Removed
+- **BREAKING**: `unregister_repository` tool - use `repositories({ identifier, remove: true })`
+- **BREAKING**: `list_repositories` tool - use `repositories()`
+- **BREAKING**: `get_repository_info` tool - use `repositories({ identifier })`
+- **BREAKING**: `refresh_repository` tool - use `register_repository({ force: true })`
 - **BREAKING**: `search_text` tool - use Claude Code's built-in `Grep` tool
 - **BREAKING**: `get_file` tool - use Claude Code's built-in `Read` tool
 - **BREAKING**: `get_file_info` tool - use Claude Code's built-in `Read` tool

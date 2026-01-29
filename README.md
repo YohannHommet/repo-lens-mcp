@@ -109,17 +109,20 @@ npm run dev
 
 ## Capabilities
 
-### Repository Management (5 tools)
+### Repository Management (2 tools)
 
 Manage which repositories are available for cross-repo search:
 
 | Tool | Description |
 |:---|:---|
-| `register_repository` | Add a git repository to the search pool |
-| `unregister_repository` | Remove a repository |
-| `list_repositories` | View all registered repositories |
-| `get_repository_info` | Get detailed info about a repository |
-| `refresh_repository` | Update git information for a repository |
+| `register_repository` | Add or update a git repository (`force: true` to update existing) |
+| `repositories` | List, view, or remove repositories |
+
+**`repositories` usage patterns:**
+- `repositories()` → List all repos
+- `repositories({ identifier: 'my-api' })` → Get details of one repo
+- `repositories({ identifier: 'my-api', remove: true })` → Remove that repo
+- `repositories({ tags: ['frontend'] })` → List repos filtered by tags
 
 ### Symbol Search (3 tools)
 

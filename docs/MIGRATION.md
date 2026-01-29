@@ -12,6 +12,10 @@ The following tools have been removed:
 
 | Removed Tool | Alternative |
 |:---|:---|
+| `unregister_repository` | Use `repositories({ identifier: '...', remove: true })` |
+| `list_repositories` | Use `repositories()` or `repositories({ tags: [...] })` |
+| `get_repository_info` | Use `repositories({ identifier: '...' })` |
+| `refresh_repository` | Use `register_repository({ path: '...', force: true })` |
 | `search_text` | Use Claude Code's built-in `Grep` tool |
 | `get_file` | Use Claude Code's built-in `Read` tool |
 | `get_file_info` | Use Claude Code's built-in `Read` tool |
@@ -71,15 +75,20 @@ rm ~/.config/mcp-repo-search/repositories.json
 
 Then re-register your repositories.
 
-## Remaining Tools (9 total)
+## Remaining Tools (6 total)
 
-### Repository Management (5 tools)
+### Repository Management (2 tools)
 
-- `register_repository` - Add a git repository to the search pool
-- `unregister_repository` - Remove a repository
-- `list_repositories` - View all registered repositories
-- `get_repository_info` - Get detailed info about a repository
-- `refresh_repository` - Update git information for a repository
+- `register_repository` - Add or update a git repository (`force: true` to update)
+- `repositories` - List, view, or remove repositories
+
+**`repositories` usage:**
+```
+repositories()                              → List all repos (markdown)
+repositories({ tags: ['frontend'] })        → List filtered repos
+repositories({ identifier: 'my-api' })      → Get one repo (JSON)
+repositories({ identifier: 'x', remove: true }) → Remove repo
+```
 
 ### Symbol Search (3 tools)
 

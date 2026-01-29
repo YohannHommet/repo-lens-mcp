@@ -52,7 +52,7 @@ npx tsx scripts/test-server.ts    # Test the MCP server interactively
 ```
 MCP Server (index.ts)
 ├── 3 Tool Categories
-│   ├── Repository Tools (register, list, unregister, get_info, refresh)
+│   ├── Repository Tools (register_repository, repositories)
 │   ├── Symbol Tools (find_functions, find_classes, find_types)
 │   └── API Tools (find_api_routes)
 ├── 2 Search Engines
@@ -64,8 +64,8 @@ MCP Server (index.ts)
     └── ConfigStore (repository persistence)
 ```
 
-**Total: 9 tools**
-- 5 repository management tools
+**Total: 6 tools**
+- 2 repository management tools
 - 3 symbol search tools
 - 1 API route discovery tool
 
