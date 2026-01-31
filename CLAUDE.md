@@ -21,9 +21,9 @@ The unique value is **cross-repository search**. While Claude Code's built-in to
 
 ### Build & Run
 ```bash
-npm run build              # Compile TypeScript to dist/
+npm run build              # Bundle with tsdown (powered by Rolldown)
 npm start                  # Run the compiled server (requires prior build)
-npm run dev                # Development mode with hot reload using tsx
+npm run dev                # Development mode with hot reload using tsdown --watch
 ```
 
 ### Testing
@@ -209,11 +209,12 @@ server.tool(
 - Uses ES modules (`"type": "module"` in package.json)
 - All imports must include `.js` extensions (even for .ts files)
 - TypeScript config: `"module": "NodeNext"`, `"moduleResolution": "NodeNext"`
+- Build output uses `.mjs` and `.d.mts` extensions (explicit ESM)
 
 ### Testing
 - Uses Vitest for testing
 - Test files: `*.spec.ts` alongside source files
-- Tests excluded from TypeScript compilation
+- Tests excluded from build output
 
 ### Logging
 - Centralized logger in `src/utils/logger.ts`
