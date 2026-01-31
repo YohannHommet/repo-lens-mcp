@@ -7,36 +7,33 @@ import { logger } from '../utils/logger.js'
 import { splitCommaSeparated } from '../utils/string-utils.js'
 
 /**
- * Helper to format API route results as Markdown
+ * Format API route results in a token-efficient format
  */
 function formatApiRoutes(results: APIRoute[]): string {
   if (results.length === 0) {
     return 'No API routes found.'
   }
 
-  let output = `## Found ${results.length} API Routes\n\n`
+  const lines: string[] = [`Found ${results.length} routes:`]
 
   // Group by repository
-  const grouped = results.reduce<Record<string, APIRoute[]>>((acc, r) => {
+  const byRepo = results.reduce<Record<string, APIRoute[]>>((acc, r) => {
     const key = r.repositoryAlias || r.repository
-    if (!acc[key]) {
+    if (!acc[key])
       acc[key] = []
-    }
     acc[key].push(r)
     return acc
   }, {})
 
-  for (const [repo, routes] of Object.entries(grouped)) {
-    output += `### Repository: ${repo}\n`
-    output += '| Method | Path | Framework | File |\n'
-    output += '|:---|:---|:---|:---|\n'
+  for (const [repo, routes] of Object.entries(byRepo)) {
+    lines.push(`\n[${repo}]`)
     for (const r of routes) {
-      output += `| **${r.method}** | \`${r.path}\` | ${r.framework || 'unknown'} | \`${r.relativePath}\`:L${r.lineNumber} |\n`
+      const fw = r.framework ? `[${r.framework}]` : ''
+      lines.push(`  ${r.method} ${r.path} ${fw} ${r.relativePath}:${r.lineNumber}`)
     }
-    output += '\n'
   }
 
-  return output
+  return lines.join('\n')
 }
 
 export function registerApiTools(

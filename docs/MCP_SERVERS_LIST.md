@@ -4,7 +4,7 @@ A short reference list of places to submit MCP servers for visibility.
 
 ## Directories
 - **Model Context Protocol (official servers list)**
-  - https://modelcontextprotocol.io (look for “Servers” / directory)
+  - https://modelcontextprotocol.io (look for "Servers" / directory)
 - **glama.ai MCP directory**
   - https://glama.ai
 - **mcpservers.org**
@@ -19,54 +19,71 @@ A short reference list of places to submit MCP servers for visibility.
 - Prefer the npm + GitHub URLs as canonical references.
 
 ## Content
-```markdown
-✅ MCP Directory Submission Copy
-1) Short description (≤140 chars)
-MCP Repo Search Server: AST‑aware code search, API route discovery, and multi‑repo indexing for LLMs (ripgrep + ast‑grep).
 
-2) Medium description (2–3 sentences)
-MCP Repo Search Server gives LLMs structural code intelligence across repositories. It combines ripgrep text search, ast‑grep symbol search, and API route discovery (Express/Fastify/NestJS) with Markdown‑formatted outputs optimized for agents.
+### Short description (≤140 chars)
+```
+Repo Lens MCP: Cross-repository AST-based symbol search and API route discovery for LLMs (ast-grep powered).
+```
 
-3) Long description (paragraph)
-MCP Repo Search Server is a Model Context Protocol server that turns local repositories into structured, searchable knowledge for LLMs. It provides multi‑repo text search (ripgrep), AST‑level symbol search (functions/classes/types via ast‑grep), and API route discovery for Express/Fastify/NestJS. Responses are returned as LLM‑friendly Markdown with syntax highlighting, and the server runs locally with zero external dependencies.
+### Medium description (2–3 sentences)
+```
+Repo Lens MCP gives LLMs structural code intelligence across multiple local repositories. It uses ast-grep for AST-level symbol search (functions, classes, types) and discovers API routes across Express, Fastify, NestJS, and Laravel projects.
+```
 
-✅ Key Features (paste as bullets)
-Multi‑repo text search (ripgrep)
-AST symbol search (functions/classes/types/variables)
-API route discovery (Express/Fastify/NestJS)
-Markdown‑formatted outputs for LLMs
-Local‑only, zero external dependencies
-✅ Quickstart / Install
-npx mcp-repo-search-server
-✅ Links
-GitHub: https://github.com/YohannHommet/mcp-repo-search-server
-npm: https://www.npmjs.com/package/mcp-repo-search-server
-Release: https://github.com/YohannHommet/mcp-repo-search-server/releases/tag/v0.1.0-alpha
-✅ Tags / Categories
-Tags: mcp, llm, code-search, ast, ripgrep, developer-tools, typescript, api-discovery
+### Long description (paragraph)
+```
+Repo Lens MCP is a Model Context Protocol server focused on cross-repository code intelligence. Register multiple local git repositories and search them all simultaneously using AST-based structural search. Find functions, classes, and TypeScript types with export awareness and full signature extraction. Discover API endpoints across Express, NestJS, Fastify, and Laravel projects. Designed to complement Claude Code's built-in tools by providing the unique capability of searching across repositories.
+```
+
+### Key Features (bullets)
+```
+- Multi-repository AST symbol search (functions/classes/types)
+- API route discovery (Express/Fastify/NestJS/Laravel)
+- Instant registration (< 1 second per repo)
+- Export-aware search with signature extraction
+- 6 focused tools, minimal footprint
+```
+
+### Quickstart
+```
+npx repo-lens-mcp
+```
+
+### Links
+```
+GitHub: https://github.com/YohannHommet/repo-lens-mcp
+npm: https://www.npmjs.com/package/repo-lens-mcp
+```
+
+### Tags / Categories
+```
+Tags: mcp, llm, code-search, ast, ast-grep, developer-tools, typescript, api-discovery, multi-repo
 Category: Developer Tools / Code Intelligence / MCP Server
+```
 
-✅ Maintainer
+### Maintainer
+```
 Yohann Hommet
 ```
 
 ## LinkedIn Post Template
 
 ```text
-I’ve just released MCP Repo Search Server — an MCP server that gives AI assistants structural code intelligence across repositories.
+Just released Repo Lens MCP v0.2.0 — a focused MCP server for cross-repository code intelligence.
 
-✅ AST‑level symbol search (functions/classes/types)
-✅ API route discovery (Express/Fastify/NestJS/Laravel)
-✅ Fast text search (ripgrep)
-✅ Markdown‑formatted outputs optimized for LLMs
-✅ Zero external dependencies
+What it does:
+- AST-based symbol search across multiple repos (functions, classes, types)
+- API route discovery (Express, NestJS, Fastify, Laravel)
+- Instant repo registration (< 1 second)
+- Designed to complement Claude Code's built-in tools
 
-If you’re building agent workflows, this unlocks a much smarter code search experience.
+v0.2.0 highlights:
+- Simplified from 15 to 6 focused tools
+- 3-5x faster with parallel processing
+- ~50MB smaller package
 
-npm: https://www.npmjs.com/package/mcp-repo-search-server
-GitHub: https://github.com/YohannHommet/mcp-repo-search-server
+npm: https://www.npmjs.com/package/repo-lens-mcp
+GitHub: https://github.com/YohannHommet/repo-lens-mcp
 
-Feedback & contributions welcome!
-
-#MCP #LLM #CodeSearch #AST #Ripgrep #DeveloperTools #TypeScript #APIDiscovery
+#MCP #LLM #CodeSearch #AST #DeveloperTools #TypeScript
 ```

@@ -22,26 +22,14 @@ export function registerRepositoryTools(
       try {
         const tags = splitCommaSeparated(tagsString) || []
         const repo = await repoManager.register(path, { alias, tags, force })
+        // Token-efficient response
+        const name = repo.alias || repo.id.slice(0, 8)
+        const tagsStr = repo.tags?.length ? ` [${repo.tags.join(',')}]` : ''
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(
-                {
-                  success: true,
-                  action: repo.action,
-                  repository: {
-                    id: repo.id,
-                    path: repo.path,
-                    alias: repo.alias,
-                    tags: repo.tags,
-                    branch: repo.gitInfo.branch,
-                    registeredAt: repo.registeredAt,
-                  },
-                },
-                null,
-                2,
-              ),
+              text: `${repo.action === 'updated' ? 'Updated' : 'Registered'}: ${name} -> ${repo.path} (${repo.gitInfo.branch})${tagsStr}`,
             },
           ],
         }
@@ -115,22 +103,19 @@ export function registerRepositoryTools(
           }
         }
 
-        let output = `## Registered Repositories (${repos.length})\n\n`
+        // Token-efficient format
+        const lines: string[] = [`${repos.length} repositories:`]
         for (const r of repos) {
-          output += `### ${r.alias || r.id}\n`
-          output += `- **Path**: \`${r.path}\`\n`
-          output += `- **Branch**: \`${r.gitInfo.branch}\`\n`
-          if (r.tags && r.tags.length > 0) {
-            output += `- **Tags**: ${r.tags.join(', ')}\n`
-          }
-          output += '\n'
+          const name = r.alias || r.id.slice(0, 8)
+          const tagsStr = r.tags?.length ? ` [${r.tags.join(',')}]` : ''
+          lines.push(`  ${name}: ${r.path} (${r.gitInfo.branch})${tagsStr}`)
         }
 
         return {
           content: [
             {
               type: 'text',
-              text: output.trim(),
+              text: lines.join('\n'),
             },
           ],
         }
