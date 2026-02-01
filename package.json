@@ -1,7 +1,7 @@
 {
   "name": "repo-lens-mcp",
   "type": "module",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "MCP server for multi-repository AST-based symbol search and API route discovery",
   "author": "Yohann Hommet <yohann.hommet@outlook.fr>",
   "license": "AGPL-3.0-only",
@@ -39,14 +39,14 @@
   ],
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
     }
   },
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/index.mjs",
+  "types": "dist/index.d.mts",
   "bin": {
-    "repo-lens-mcp": "dist/index.js"
+    "repo-lens-mcp": "dist/index.mjs"
   },
   "files": [
     "CHANGELOG.md",
@@ -62,14 +62,14 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "tsx watch src/index.ts",
+    "build": "tsdown",
+    "start": "node dist/index.mjs",
+    "dev": "tsdown --watch",
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "typecheck": "tsc --noEmit",
+    "lint": "oxlint src",
+    "lint:fix": "oxlint --fix",
+    "typecheck": "oxlint --type-check",
     "ci": "npm run test:coverage && npm run typecheck && npm run lint",
     "benchmark": "tsx scripts/benchmark.ts",
     "benchmark:multi": "tsx scripts/benchmark-multi.ts",
@@ -84,10 +84,10 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^7.2.0",
     "@types/node": "^25.0.10",
     "@vitest/coverage-v8": "^4.0.18",
-    "eslint": "^9.39.2",
+    "oxlint": "^1.42.0",
+    "tsdown": "^0.20.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"

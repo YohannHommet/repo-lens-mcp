@@ -5,9 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-01-31
+
+### Changed
+
+- **Build System**: Migrated from `tsc` to `tsdown` (powered by Rolldown) for faster builds and smaller bundles
+  - Build time reduced from ~5s to ~2s
+  - Bundle size optimized to 44KB (gzip: 10.72KB)
+  - Development mode now uses `tsdown --watch` with hot reload
+  - Output files now use explicit ESM extensions (`.mjs`, `.d.mts`)
+- Package version bumped to align with build system update
+
+### Technical Details
+
+- Added `tsdown@^0.20.1` as build tool (Rust-powered bundler)
+- Configured external dependencies to prevent bundling native modules (`@ast-grep/napi`, `@modelcontextprotocol/sdk`, `simple-git`)
+- Build output includes source maps and automatic execute permissions
+
 ## [0.2.0] - 2026-01-29
 
 ### Added
+
 - **Performance**: Parallel repository processing (2-3x faster multi-repo searches)
 - **Performance**: Parallel file processing with batches of 8 concurrent files (3-5x faster on large repos)
 - **Performance**: Regex pattern caching with size limit to avoid recompilation
@@ -16,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tests**: Comprehensive test suite for search engines (symbol-search: 94%, api-route-search: 87%)
 
 ### Changed
+
 - **BREAKING**: Refocused on multi-repository AST-based search
 - **BREAKING**: Consolidated repository tools from 5 to 2:
   - `register_repository` now supports `force: true` to update existing repos (replaces `refresh_repository`)
@@ -26,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Converted all array parameters to comma-separated strings for better MCP client compatibility
 
 ### Removed
+
 - **BREAKING**: `unregister_repository` tool - use `repositories({ identifier, remove: true })`
 - **BREAKING**: `list_repositories` tool - use `repositories()`
 - **BREAKING**: `get_repository_info` tool - use `repositories({ identifier })`
@@ -43,6 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Configuration options: `MCP_CACHE_ENABLED`, `MCP_CACHE_TTL`, `MCP_CACHE_MAX_ENTRIES`, `MCP_SEARCH_TIMEOUT_MS`, `MCP_MAX_SEARCH_RESULTS`, `MCP_MAX_FILE_SIZE`
 
 ### Fixed
+
 - Resolved parameter type issues causing input loops in MCP clients
 - Added debug logging to all tool entry points for better tracing
 - `repositories` tool now validates that `remove` requires an `identifier`
@@ -52,11 +73,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Regex pattern cache now has size limit (100) to prevent memory leaks in long-running sessions
 
 ### Migration
+
 See [docs/MIGRATION.md](docs/MIGRATION.md) for detailed migration instructions.
 
 ## [0.1.2] - 2026-01-27
 
 ### Stabilized
+
 - **Repository Tools**: Renamed `list_repositories` to `list_registered_repositories` to force platform re-indexing and changed `tags` parameter to a comma-separated string to prevent input loops in MCP clients.
 - **Search Tools**: Converted all array parameters (e.g., `repos`, `tags`) to comma-separated strings across `search_text`, `find_api_routes`, and all symbol search tools.
 - **Observability**: Added debug logging to all tool entry points for better tracing.
@@ -65,6 +88,7 @@ See [docs/MIGRATION.md](docs/MIGRATION.md) for detailed migration instructions.
 ## [0.1.1-alpha] - 2026-01-26
 
 ### Fixed
+
 - Resolved npm publication conflict by bumping version.
 - Optimized package size by excluding test/spec files from the npm bundle.
 - Improved CI/CD reliability with manual trigger and fixed release events.
@@ -72,6 +96,7 @@ See [docs/MIGRATION.md](docs/MIGRATION.md) for detailed migration instructions.
 ## [0.1.0-alpha] - 2026-01-26 (Unpublished)
 
 ### Added
+
 - **Initial Release** of repo-lens-mcp
 - **Repository Management**:
   - `register_repository` - Add a repo to the search index
@@ -101,10 +126,12 @@ See [docs/MIGRATION.md](docs/MIGRATION.md) for detailed migration instructions.
   - Automated testing and linting
 
 ### Security
+
 - All file operations are sandboxed within registered repositories
 - Symlink traversal protection enabled
 - Input validation on all user-provided paths
 
+[0.2.1]: https://github.com/YohannHommet/repo-lens-mcp/releases/tag/v0.2.1
 [0.2.0]: https://github.com/YohannHommet/repo-lens-mcp/releases/tag/v0.2.0
 [0.1.2]: https://github.com/YohannHommet/repo-lens-mcp/releases/tag/v0.1.2
 [0.1.1-alpha]: https://github.com/YohannHommet/repo-lens-mcp/releases/tag/v0.1.1-alpha
