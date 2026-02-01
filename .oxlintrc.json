@@ -1,5 +1,5 @@
 {
-  "$schema": "https://oxc.rs/schema.json",
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
   "rules": {
     "correctness": "error",
     "suspicious": "error"
