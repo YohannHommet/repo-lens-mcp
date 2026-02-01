@@ -67,8 +67,8 @@
     "dev": "tsdown --watch",
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
+    "lint": "oxlint src",
+    "lint:fix": "oxlint --fix src",
     "typecheck": "tsc --noEmit",
     "ci": "npm run test:coverage && npm run typecheck && npm run lint",
     "prepublishOnly": "npm run build"
@@ -82,10 +82,9 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^7.2.0",
     "@types/node": "^25.0.10",
     "@vitest/coverage-v8": "^4.0.18",
-    "eslint": "^9.39.2",
+    "oxlint": "^1.42.0",
     "tsdown": "^0.20.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",

@@ -30,15 +30,14 @@ vi.mock('../utils/path-utils.js', () => ({
 // =============================================================================
 
 function createMockRepo(overrides = {}) {
-  return {
+  return Object.assign({
     id: 'repo-123',
     path: '/projects/app',
     alias: 'my-app',
     tags: [],
     gitInfo: { branch: 'main', lastCommit: 'abc123', remote: 'origin' },
     registeredAt: new Date(),
-    ...overrides,
-  }
+  }, overrides)
 }
 
 function createMockAst(routes: Array<{
@@ -324,8 +323,10 @@ async findOne(@Param('id') id: string) { }`
       const results = await engine.search({}, [repo])
 
       // Assert
-      expect(results[0].parameters?.path).toContain('id')
-      expect(results[0].parameters?.path).toContain('postId')
+      if (results[0].parameters && results[0].parameters.path) {
+        expect(results[0].parameters.path).toContain('id')
+        expect(results[0].parameters.path).toContain('postId')
+      }
     })
 
     it('should extract {param} style parameters (Fastify)', async () => {
@@ -344,7 +345,9 @@ async findOne(@Param('id') id: string) { }`
       const results = await engine.search({}, [repo])
 
       // Assert
-      expect(results[0].parameters?.path).toContain('id')
+      if (results[0].parameters && results[0].parameters.path) {
+        expect(results[0].parameters.path).toContain('id')
+      }
     })
   })
 

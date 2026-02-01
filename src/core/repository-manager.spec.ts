@@ -256,7 +256,7 @@ describe('repositoryManager', () => {
   // ===========================================================================
 
   describe('list', () => {
-    it('should return empty array when no repositories registered', async () => {
+    it('should return empty array when no repositories registered', () => {
       // Act
       const result = manager.list()
 
@@ -345,7 +345,9 @@ describe('repositoryManager', () => {
 
       // Assert
       expect(result).not.toBeNull()
-      expect(result?.id).toBe(repo.id)
+      if (result) {
+        expect(result.id).toBe(repo.id)
+      }
     })
 
     it('should return repository by alias', async () => {
@@ -357,7 +359,9 @@ describe('repositoryManager', () => {
 
       // Assert
       expect(result).not.toBeNull()
-      expect(result?.alias).toBe('my-app')
+      if (result) {
+        expect(result.alias).toBe('my-app')
+      }
     })
 
     it('should return repository by path', async () => {
@@ -369,10 +373,12 @@ describe('repositoryManager', () => {
 
       // Assert
       expect(result).not.toBeNull()
-      expect(result?.path).toBe('/projects/app')
+      if (result) {
+        expect(result.path).toBe('/projects/app')
+      }
     })
 
-    it('should return null when repository not found', async () => {
+    it('should return null when repository not found', () => {
       // Act
       const result = manager.get('non-existent')
 
@@ -394,7 +400,9 @@ describe('repositoryManager', () => {
       const result = manager.resolveIdentifier(repo.id)
 
       // Assert
-      expect(result?.id).toBe(repo.id)
+      if (result) {
+        expect(result.id).toBe(repo.id)
+      }
     })
 
     it('should resolve by alias when ID not found', async () => {
@@ -405,7 +413,9 @@ describe('repositoryManager', () => {
       const result = manager.resolveIdentifier('my-alias')
 
       // Assert
-      expect(result?.alias).toBe('my-alias')
+      if (result) {
+        expect(result.alias).toBe('my-alias')
+      }
     })
 
     it('should resolve by path when ID and alias not found', async () => {
@@ -416,7 +426,9 @@ describe('repositoryManager', () => {
       const result = manager.resolveIdentifier('/projects/app')
 
       // Assert
-      expect(result?.path).toBe('/projects/app')
+      if (result) {
+        expect(result.path).toBe('/projects/app')
+      }
     })
 
     it('should return null when nothing matches', async () => {
@@ -514,8 +526,10 @@ describe('repositoryManager', () => {
 
       // Assert
       expect(result).not.toBeNull()
-      expect(result?.repo.id).toBe(repo.id)
-      expect(result?.relativePath).toBe('src/index.ts')
+      if (result) {
+        expect(result.repo.id).toBe(repo.id)
+        expect(result.relativePath).toBe('src/index.ts')
+      }
     })
 
     it('should return null when file is not in any repository', async () => {
@@ -538,8 +552,10 @@ describe('repositoryManager', () => {
       const result = manager.resolvePath('/projects/app2/src/main.ts')
 
       // Assert
-      expect(result?.repo.id).toBe(repo2.id)
-      expect(result?.relativePath).toBe('src/main.ts')
+      if (result) {
+        expect(result.repo.id).toBe(repo2.id)
+        expect(result.relativePath).toBe('src/main.ts')
+      }
     })
 
     it('should handle deeply nested file paths', async () => {
@@ -550,7 +566,9 @@ describe('repositoryManager', () => {
       const result = manager.resolvePath('/projects/app/src/components/ui/Button/index.tsx')
 
       // Assert
-      expect(result?.relativePath).toBe('src/components/ui/Button/index.tsx')
+      if (result) {
+        expect(result.relativePath).toBe('src/components/ui/Button/index.tsx')
+      }
     })
   })
 

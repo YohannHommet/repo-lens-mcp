@@ -1,0 +1,7 @@
+{
+  "$schema": "https://oxc.rs/schema.json",
+  "rules": {
+    "correctness": "error",
+    "suspicious": "error"
+  }
+}

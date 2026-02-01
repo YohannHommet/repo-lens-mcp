@@ -15,7 +15,6 @@ export function safeRealPath(path: string): string {
     return realpathSync(path)
   }
   catch {
-    // Path doesn't exist, fall back to resolve
     return resolve(path)
   }
 }
@@ -112,7 +111,7 @@ export async function safeOpenFile(filePath: string, allowedDir: string): Promis
   }
   catch (error: any) {
     if (error.code === 'ELOOP' || error.code === 'EMLINK') {
-      throw new Error('File is a symbolic link (security: symlinks not allowed)')
+      throw new Error('File is a symbolic link (security: symlinks not allowed)', { cause: error })
     }
     throw error
   }
