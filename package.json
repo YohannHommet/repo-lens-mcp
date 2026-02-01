@@ -71,6 +71,8 @@
     "lint:fix": "oxlint --fix src",
     "typecheck": "tsc --noEmit",
     "ci": "npm run test:coverage && npm run typecheck && npm run lint",
+    "benchmark": "tsx scripts/benchmark.ts",
+    "benchmark:multi": "tsx scripts/benchmark-multi.ts",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {

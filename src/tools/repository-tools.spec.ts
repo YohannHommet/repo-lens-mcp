@@ -64,10 +64,9 @@ describe('repository tools', () => {
         { alias: 'my-app', tags: ['frontend', 'typescript'], force: undefined },
       )
       expect(result.isError).toBeUndefined()
-      const content = JSON.parse(result.content[0].text)
-      expect(content.success).toBe(true)
-      expect(content.action).toBe('registered')
-      expect(content.repository.id).toBe('repo-123')
+      expect(result.content[0].text).toContain('Registered')
+      expect(result.content[0].text).toContain('my-app')
+      expect(result.content[0].text).toContain('/projects/my-app')
     })
 
     it('should update existing repository with force=true', async () => {
@@ -86,8 +85,7 @@ describe('repository tools', () => {
         '/projects/my-app',
         { alias: undefined, tags: [], force: true },
       )
-      const content = JSON.parse(result.content[0].text)
-      expect(content.action).toBe('updated')
+      expect(result.content[0].text).toContain('Updated')
     })
 
     it('should handle registration errors', async () => {
@@ -130,7 +128,7 @@ describe('repository tools', () => {
 
       // Assert
       expect(mockRepoManager.list).toHaveBeenCalledWith({ tags: undefined })
-      expect(result.content[0].text).toContain('Registered Repositories (1)')
+      expect(result.content[0].text).toContain('1 repositories:')
       expect(result.content[0].text).toContain('my-app')
     })
 
@@ -182,7 +180,9 @@ describe('repository tools', () => {
       const result = await handler({})
 
       // Assert
-      expect(result.content[0].text).not.toContain('**Tags**')
+      // New format uses [tags] suffix, which should be absent for empty tags
+      expect(result.content[0].text).toContain('my-app')
+      expect(result.content[0].text).not.toContain('[frontend')
     })
   })
 
