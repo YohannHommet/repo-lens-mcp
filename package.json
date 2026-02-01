@@ -69,7 +69,7 @@
     "test:coverage": "vitest run --coverage",
     "lint": "oxlint src",
     "lint:fix": "oxlint --fix src",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "oxlint --typecheck src",
     "ci": "npm run test:coverage && npm run typecheck && npm run lint",
     "benchmark": "tsx scripts/benchmark.ts",
     "benchmark:multi": "tsx scripts/benchmark-multi.ts",
