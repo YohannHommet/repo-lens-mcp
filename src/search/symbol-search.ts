@@ -103,6 +103,13 @@ export class SymbolSearchEngine {
     if (!languagePatterns)
       return results
 
+    // Content pre-filter: skip AST parsing if the exact name isn't in the file
+    if (options.name && !options.name.includes('*')) {
+      if (!content.toLowerCase().includes(options.name.toLowerCase())) {
+        return results
+      }
+    }
+
     const patterns = languagePatterns.patterns[options.kind] || []
 
     // Also search arrow functions for function kind

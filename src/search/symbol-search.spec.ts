@@ -588,6 +588,79 @@ export default greet`
   })
 
   // ===========================================================================
+  // Content Pre-Filtering
+  // ===========================================================================
+
+  describe('content pre-filtering', () => {
+    it('should skip AST parsing when file content does not contain the searched name', async () => {
+      const repo = createMockRepo()
+      mockFg.mockResolvedValue(['/projects/app/src/unrelated.ts'])
+      mockReadFile.mockResolvedValue('export function unrelatedHelper() { return true }')
+
+      const engine = new SymbolSearchEngine()
+      const results = await engine.search(
+        { kind: 'function', name: 'parseUserData', maxResults: 100 },
+        [repo],
+      )
+
+      expect(results).toEqual([])
+      expect(mockParse).not.toHaveBeenCalled()
+    })
+
+    it('should still parse when file content contains the searched name', async () => {
+      const repo = createMockRepo()
+      mockFg.mockResolvedValue(['/projects/app/src/user.ts'])
+      mockReadFile.mockResolvedValue('export function parseUserData(data: unknown) { return data }')
+      mockParse.mockReturnValue(createMockAst([
+        { name: 'parseUserData', kind: 'function', startLine: 1, endLine: 1, text: 'export function parseUserData(data: unknown) { return data }', isExported: true },
+      ]))
+
+      const engine = new SymbolSearchEngine()
+      const results = await engine.search(
+        { kind: 'function', name: 'parseUserData', maxResults: 100 },
+        [repo],
+      )
+
+      expect(results).toHaveLength(1)
+      expect(mockParse).toHaveBeenCalled()
+    })
+
+    it('should skip pre-filter for wildcard patterns', async () => {
+      const repo = createMockRepo()
+      mockFg.mockResolvedValue(['/projects/app/src/file.ts'])
+      mockReadFile.mockResolvedValue('export function something() {}')
+      mockParse.mockReturnValue(createMockAst([
+        { name: 'something', kind: 'function', startLine: 1, endLine: 1, text: 'export function something() {}', isExported: true },
+      ]))
+
+      const engine = new SymbolSearchEngine()
+      await engine.search(
+        { kind: 'function', name: 'some*', maxResults: 100 },
+        [repo],
+      )
+
+      expect(mockParse).toHaveBeenCalled()
+    })
+
+    it('should not pre-filter when no name is specified', async () => {
+      const repo = createMockRepo()
+      mockFg.mockResolvedValue(['/projects/app/src/file.ts'])
+      mockReadFile.mockResolvedValue('export function anything() {}')
+      mockParse.mockReturnValue(createMockAst([
+        { name: 'anything', kind: 'function', startLine: 1, endLine: 1, text: 'export function anything() {}', isExported: true },
+      ]))
+
+      const engine = new SymbolSearchEngine()
+      await engine.search(
+        { kind: 'function', maxResults: 100 },
+        [repo],
+      )
+
+      expect(mockParse).toHaveBeenCalled()
+    })
+  })
+
+  // ===========================================================================
   // Signature Extraction
   // ===========================================================================
 
