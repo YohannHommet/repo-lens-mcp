@@ -110,13 +110,26 @@ export class SymbolSearchEngine {
       }
     }
 
-    const patterns = languagePatterns.patterns[options.kind] || []
+    // Resolve which kinds to search
+    const kindsToSearch = options.kinds ?? (options.kind ? [options.kind] : [])
 
-    // Also search arrow functions for function kind
-    const allPatterns
-      = options.kind === 'function' && languagePatterns.arrowFunctions
-        ? [...patterns, ...languagePatterns.arrowFunctions]
-        : patterns
+    if (kindsToSearch.length === 0)
+      return results
+
+    // Collect patterns tagged by kind
+    const allPatterns: Array<{ pattern: string, kind: SymbolKind }> = []
+    for (const kind of kindsToSearch) {
+      const kindPatterns = languagePatterns.patterns[kind] || []
+      for (const pattern of kindPatterns) {
+        allPatterns.push({ pattern, kind })
+      }
+      // Also search arrow functions for function kind
+      if (kind === 'function' && languagePatterns.arrowFunctions) {
+        for (const pattern of languagePatterns.arrowFunctions) {
+          allPatterns.push({ pattern, kind })
+        }
+      }
+    }
 
     if (allPatterns.length === 0)
       return results
@@ -135,7 +148,7 @@ export class SymbolSearchEngine {
     // Track seen symbols to avoid duplicates
     const seenSymbols = new Set<string>()
 
-    for (const pattern of allPatterns) {
+    for (const { pattern, kind: matchKind } of allPatterns) {
       try {
         const matches = root.findAll(pattern)
 
@@ -164,7 +177,7 @@ export class SymbolSearchEngine {
           }
 
           seenSymbols.add(symbolKey)
-          const signature = this.extractSignature(match.text(), options.kind)
+          const signature = this.extractSignature(match.text(), matchKind)
 
           results.push({
             repository: repo.id,
@@ -172,7 +185,7 @@ export class SymbolSearchEngine {
             filePath,
             relativePath: getRelativePath(repo.path, filePath),
             name,
-            kind: options.kind,
+            kind: matchKind,
             startLine: range.start.line + 1,
             endLine: range.end.line + 1,
             signature,

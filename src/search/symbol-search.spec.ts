@@ -661,6 +661,57 @@ export default greet`
   })
 
   // ===========================================================================
+  // Multi-Kind Search
+  // ===========================================================================
+
+  describe('multi-kind search', () => {
+    it('should search for multiple kinds in a single pass', async () => {
+      const repo = createMockRepo()
+      mockFg.mockResolvedValue(['/projects/app/src/types.ts'])
+      mockReadFile.mockResolvedValue('export type UserId = string\nexport interface User { id: UserId }')
+
+      const typeMatch = {
+        getMatch: (key: string) => key === 'NAME' ? { text: () => 'UserId' } : null,
+        range: () => ({ start: { line: 0, index: 0 }, end: { line: 0, index: 100 } }),
+        text: () => 'export type UserId = string',
+        kind: () => 'export_statement',
+        parent: () => ({ kind: () => 'export_statement', parent: () => null }),
+      }
+      const interfaceMatch = {
+        getMatch: (key: string) => key === 'NAME' ? { text: () => 'User' } : null,
+        range: () => ({ start: { line: 1, index: 0 }, end: { line: 1, index: 100 } }),
+        text: () => 'export interface User { id: UserId }',
+        kind: () => 'export_statement',
+        parent: () => ({ kind: () => 'export_statement', parent: () => null }),
+      }
+
+      mockParse.mockReturnValue({
+        root: () => ({
+          findAll: (pattern: string) => {
+            if (pattern.includes('type'))
+              return [typeMatch]
+            if (pattern.includes('interface'))
+              return [interfaceMatch]
+            return []
+          },
+        }),
+      })
+
+      const engine = new SymbolSearchEngine()
+      const results = await engine.search(
+        { kinds: ['type', 'interface'], maxResults: 100 },
+        [repo],
+      )
+
+      expect(results).toHaveLength(2)
+      expect(results.map(r => r.kind)).toContain('type')
+      expect(results.map(r => r.kind)).toContain('interface')
+      expect(mockReadFile).toHaveBeenCalledTimes(1)
+      expect(mockParse).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  // ===========================================================================
   // Signature Extraction
   // ===========================================================================
 
