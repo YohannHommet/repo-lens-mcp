@@ -23,7 +23,7 @@ type ToolHandler = (args: any) => Promise<any>
 const toolHandlers: Map<string, ToolHandler> = new Map()
 
 const mockServer = {
-  tool: vi.fn((name: string, _description: string, _schema: any, handler: ToolHandler) => {
+  registerTool: vi.fn((name: string, _config: any, handler: ToolHandler) => {
     toolHandlers.set(name, handler)
   }),
 } as unknown as McpServer
@@ -49,7 +49,7 @@ describe('repository tools', () => {
     it('should register a new repository successfully', async () => {
       // Arrange
       mockRepoManager.register.mockResolvedValue(mockRepo)
-      const handler = toolHandlers.get('register_repository')!
+      const handler = toolHandlers.get('repolens_register_repository')!
 
       // Act
       const result = await handler({
@@ -72,7 +72,7 @@ describe('repository tools', () => {
     it('should update existing repository with force=true', async () => {
       // Arrange
       mockRepoManager.register.mockResolvedValue(mockUpdatedRepo)
-      const handler = toolHandlers.get('register_repository')!
+      const handler = toolHandlers.get('repolens_register_repository')!
 
       // Act
       const result = await handler({
@@ -91,7 +91,7 @@ describe('repository tools', () => {
     it('should handle registration errors', async () => {
       // Arrange
       mockRepoManager.register.mockRejectedValue(new Error('Repository already registered'))
-      const handler = toolHandlers.get('register_repository')!
+      const handler = toolHandlers.get('repolens_register_repository')!
 
       // Act
       const result = await handler({ path: '/projects/my-app' })
@@ -104,7 +104,7 @@ describe('repository tools', () => {
     it('should handle undefined tags gracefully', async () => {
       // Arrange
       mockRepoManager.register.mockResolvedValue(mockRepo)
-      const handler = toolHandlers.get('register_repository')!
+      const handler = toolHandlers.get('repolens_register_repository')!
 
       // Act
       await handler({ path: '/projects/my-app' })
@@ -121,7 +121,7 @@ describe('repository tools', () => {
     it('should list all repositories', async () => {
       // Arrange
       mockRepoManager.list.mockReturnValue([mockRepo])
-      const handler = toolHandlers.get('repositories')!
+      const handler = toolHandlers.get('repolens_repositories')!
 
       // Act
       const result = await handler({})
@@ -135,7 +135,7 @@ describe('repository tools', () => {
     it('should filter repositories by tags', async () => {
       // Arrange
       mockRepoManager.list.mockReturnValue([mockRepo])
-      const handler = toolHandlers.get('repositories')!
+      const handler = toolHandlers.get('repolens_repositories')!
 
       // Act
       const result = await handler({ tagFilter: 'frontend,typescript' })
@@ -148,7 +148,7 @@ describe('repository tools', () => {
     it('should handle empty repository list', async () => {
       // Arrange
       mockRepoManager.list.mockReturnValue([])
-      const handler = toolHandlers.get('repositories')!
+      const handler = toolHandlers.get('repolens_repositories')!
 
       // Act
       const result = await handler({})
@@ -161,7 +161,7 @@ describe('repository tools', () => {
       // Arrange
       const repoWithoutAlias = { ...mockRepo, alias: undefined }
       mockRepoManager.list.mockReturnValue([repoWithoutAlias])
-      const handler = toolHandlers.get('repositories')!
+      const handler = toolHandlers.get('repolens_repositories')!
 
       // Act
       const result = await handler({})
@@ -174,7 +174,7 @@ describe('repository tools', () => {
       // Arrange
       const repoWithoutTags = { ...mockRepo, tags: [] }
       mockRepoManager.list.mockReturnValue([repoWithoutTags])
-      const handler = toolHandlers.get('repositories')!
+      const handler = toolHandlers.get('repolens_repositories')!
 
       // Act
       const result = await handler({})
@@ -190,7 +190,7 @@ describe('repository tools', () => {
     it('should get repository by identifier', async () => {
       // Arrange
       mockRepoManager.get.mockReturnValue(mockRepo)
-      const handler = toolHandlers.get('repositories')!
+      const handler = toolHandlers.get('repolens_repositories')!
 
       // Act
       const result = await handler({ identifier: 'my-app' })
@@ -205,14 +205,15 @@ describe('repository tools', () => {
     it('should return error when repository not found', async () => {
       // Arrange
       mockRepoManager.get.mockReturnValue(null)
-      const handler = toolHandlers.get('repositories')!
+      const handler = toolHandlers.get('repolens_repositories')!
 
       // Act
       const result = await handler({ identifier: 'nonexistent' })
 
       // Assert
       expect(result.isError).toBe(true)
-      expect(result.content[0].text).toBe('Repository not found')
+      expect(result.content[0].text).toContain('Repository not found')
+      expect(result.content[0].text).toContain('nonexistent')
     })
   })
 
@@ -220,7 +221,7 @@ describe('repository tools', () => {
     it('should remove repository by identifier', async () => {
       // Arrange
       mockRepoManager.unregister.mockResolvedValue(undefined)
-      const handler = toolHandlers.get('repositories')!
+      const handler = toolHandlers.get('repolens_repositories')!
 
       // Act
       const result = await handler({ identifier: 'my-app', remove: true })
@@ -234,7 +235,7 @@ describe('repository tools', () => {
 
     it('should return error when remove=true but no identifier', async () => {
       // Arrange
-      const handler = toolHandlers.get('repositories')!
+      const handler = toolHandlers.get('repolens_repositories')!
 
       // Act
       const result = await handler({ remove: true })
@@ -248,7 +249,7 @@ describe('repository tools', () => {
     it('should handle unregister errors', async () => {
       // Arrange
       mockRepoManager.unregister.mockRejectedValue(new Error('Repository not found: xyz'))
-      const handler = toolHandlers.get('repositories')!
+      const handler = toolHandlers.get('repolens_repositories')!
 
       // Act
       const result = await handler({ identifier: 'xyz', remove: true })
@@ -265,7 +266,7 @@ describe('repository tools', () => {
       mockRepoManager.list.mockImplementation(() => {
         throw new Error('Database error')
       })
-      const handler = toolHandlers.get('repositories')!
+      const handler = toolHandlers.get('repolens_repositories')!
 
       // Act
       const result = await handler({})
@@ -280,7 +281,7 @@ describe('repository tools', () => {
       mockRepoManager.get.mockImplementation(() => {
         throw new Error('Connection failed')
       })
-      const handler = toolHandlers.get('repositories')!
+      const handler = toolHandlers.get('repolens_repositories')!
 
       // Act
       const result = await handler({ identifier: 'my-app' })
