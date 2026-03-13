@@ -3,6 +3,11 @@
  */
 
 /**
+ * Maximum response size in characters to prevent overwhelming LLM context
+ */
+export const CHARACTER_LIMIT = 25_000
+
+/**
  * Patterns to ignore for symbol search (generated/minified files)
  */
 export const SYMBOL_SEARCH_IGNORE_PATTERNS = [

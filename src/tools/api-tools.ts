@@ -4,7 +4,7 @@ import type { APIRouteSearchEngine } from '../search/api-route-search.js'
 import type { APIRoute } from '../types/symbols.js'
 import { z } from 'zod'
 import { logger } from '../utils/logger.js'
-import { splitCommaSeparated } from '../utils/string-utils.js'
+import { formatToolResponse, handleToolError, resolveRepositories } from './tool-utils.js'
 
 /**
  * Format API route results in a token-efficient format
@@ -94,48 +94,18 @@ Error Handling:
     async ({ method, pathPattern, repoFilter, framework, maxResults, response_format }) => {
       logger.debug('Tool find_api_routes called', { method, pathPattern, repoFilter, framework, response_format })
       try {
-        const repos = splitCommaSeparated(repoFilter)
-        const repositories = repoManager.resolveIdentifiers(repos)
-
-        if (repositories.length === 0) {
-          return {
-            content: [{ type: 'text', text: 'No repositories found. Use repolens_register_repository to add repositories, or check repoFilter value matches registered repos.' }],
-            isError: true,
-          }
-        }
+        const resolved = resolveRepositories(repoManager, repoFilter)
+        if ('error' in resolved) return resolved.error
 
         const results = await apiRouteSearch.search(
-          {
-            method,
-            pathPattern,
-            framework,
-            maxResults: maxResults ?? 100,
-          },
-          repositories,
+          { method, pathPattern, framework, maxResults: maxResults ?? 100 },
+          resolved.repositories,
         )
 
-        // JSON format - return raw results array
-        if (response_format === 'json') {
-          return {
-            content: [{ type: 'text', text: JSON.stringify(results, null, 2) }],
-          }
-        }
-
-        // Markdown format (default)
-        return {
-          content: [
-            {
-              type: 'text',
-              text: formatApiRoutes(results),
-            },
-          ],
-        }
+        return formatToolResponse(response_format, results, () => formatApiRoutes(results))
       }
       catch (error) {
-        return {
-          content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
-          isError: true,
-        }
+        return handleToolError(error, 'find_api_routes')
       }
     },
   )

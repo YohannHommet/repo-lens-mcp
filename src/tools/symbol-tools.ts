@@ -4,7 +4,7 @@ import type { SymbolSearchEngine } from '../search/symbol-search.js'
 import type { SymbolResult } from '../types/symbols.js'
 import { z } from 'zod'
 import { logger } from '../utils/logger.js'
-import { splitCommaSeparated } from '../utils/string-utils.js'
+import { formatToolResponse, handleToolError, resolveRepositories } from './tool-utils.js'
 
 /**
  * Format symbol results in a token-efficient format
@@ -42,6 +42,26 @@ function formatSymbolResults(results: SymbolResult[], kind: string, pattern: str
   return lines.join('\n')
 }
 
+const languageEnum = z.enum(['typescript', 'javascript', 'ts', 'js'])
+
+const symbolAnnotations = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
+} as const
+
+function symbolInputSchema(nameDescription: string) {
+  return z.object({
+    name: z.string().min(1).optional().describe(nameDescription),
+    repoFilter: z.string().optional().describe('Repository aliases or paths to search (comma-separated)'),
+    language: languageEnum.optional().describe('Filter by language (typescript, javascript, ts, js)'),
+    exportedOnly: z.boolean().optional().describe('Only return exported symbols (default: false)'),
+    maxResults: z.number().int().min(1).max(500).optional().describe('Maximum results (default: 100, max: 500)'),
+    response_format: z.enum(['json', 'markdown']).optional().describe('Output format: "markdown" (default) or "json"'),
+  }).strict()
+}
+
 export function registerSymbolTools(
   server: McpServer,
   repoManager: RepositoryManager,
@@ -75,67 +95,24 @@ Examples:
 Error Handling:
   - "No repositories found" if no repos registered or repoFilter matches nothing
   - "No functions found" if search returns empty`,
-      inputSchema: z.object({
-        name: z.string().min(1).optional().describe('Function name pattern (supports wildcards like \'handle*\')'),
-        repoFilter: z.string().optional().describe('Repository aliases or paths to search (comma-separated)'),
-        language: z.enum(['typescript', 'javascript', 'ts', 'js']).optional().describe('Filter by language (typescript, javascript, ts, js)'),
-        exportedOnly: z.boolean().optional().describe('Only return exported functions (default: false)'),
-        maxResults: z.number().int().min(1).max(500).optional().describe('Maximum results (default: 100, max: 500)'),
-        response_format: z.enum(['json', 'markdown']).optional().describe('Output format: "markdown" (default) or "json"'),
-      }).strict(),
-      annotations: {
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
+      inputSchema: symbolInputSchema('Function name pattern (supports wildcards like \'handle*\')'),
+      annotations: symbolAnnotations,
     },
     async ({ name, repoFilter, language, exportedOnly, maxResults, response_format }) => {
       logger.debug('Tool find_functions called', { name, repoFilter, language, response_format })
       try {
-        const repos = splitCommaSeparated(repoFilter)
-        const repositories = repoManager.resolveIdentifiers(repos)
-
-        if (repositories.length === 0) {
-          return {
-            content: [{ type: 'text', text: 'No repositories found. Use repolens_register_repository to add repositories, or check repoFilter value matches registered repos.' }],
-            isError: true,
-          }
-        }
+        const resolved = resolveRepositories(repoManager, repoFilter)
+        if ('error' in resolved) return resolved.error
 
         const results = await symbolSearch.search(
-          {
-            kind: 'function',
-            name,
-            language,
-            exportedOnly: exportedOnly ?? false,
-            maxResults: maxResults ?? 100,
-          },
-          repositories,
+          { kind: 'function', name, language, exportedOnly: exportedOnly ?? false, maxResults: maxResults ?? 100 },
+          resolved.repositories,
         )
 
-        // JSON format - return raw results array
-        if (response_format === 'json') {
-          return {
-            content: [{ type: 'text', text: JSON.stringify(results, null, 2) }],
-          }
-        }
-
-        // Markdown format (default)
-        return {
-          content: [
-            {
-              type: 'text',
-              text: formatSymbolResults(results, 'function', name),
-            },
-          ],
-        }
+        return formatToolResponse(response_format, results, () => formatSymbolResults(results, 'function', name))
       }
       catch (error) {
-        return {
-          content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
-          isError: true,
-        }
+        return handleToolError(error, 'find_functions')
       }
     },
   )
@@ -168,67 +145,24 @@ Examples:
 Error Handling:
   - "No repositories found" if no repos registered or repoFilter matches nothing
   - "No classes found" if search returns empty`,
-      inputSchema: z.object({
-        name: z.string().min(1).optional().describe('Class name pattern'),
-        repoFilter: z.string().optional().describe('Repository aliases or paths to search (comma-separated)'),
-        language: z.enum(['typescript', 'javascript', 'ts', 'js']).optional().describe('Filter by language (typescript, javascript, ts, js)'),
-        exportedOnly: z.boolean().optional().describe('Only return exported classes'),
-        maxResults: z.number().int().min(1).max(500).optional().describe('Maximum results (default: 100, max: 500)'),
-        response_format: z.enum(['json', 'markdown']).optional().describe('Output format: "markdown" (default) or "json"'),
-      }).strict(),
-      annotations: {
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
+      inputSchema: symbolInputSchema('Class name pattern'),
+      annotations: symbolAnnotations,
     },
     async ({ name, repoFilter, language, exportedOnly, maxResults, response_format }) => {
       logger.debug('Tool find_classes called', { name, repoFilter, language, response_format })
       try {
-        const repos = splitCommaSeparated(repoFilter)
-        const repositories = repoManager.resolveIdentifiers(repos)
-
-        if (repositories.length === 0) {
-          return {
-            content: [{ type: 'text', text: 'No repositories found. Use repolens_register_repository to add repositories, or check repoFilter value matches registered repos.' }],
-            isError: true,
-          }
-        }
+        const resolved = resolveRepositories(repoManager, repoFilter)
+        if ('error' in resolved) return resolved.error
 
         const results = await symbolSearch.search(
-          {
-            kind: 'class',
-            name,
-            language,
-            exportedOnly: exportedOnly ?? false,
-            maxResults: maxResults ?? 100,
-          },
-          repositories,
+          { kind: 'class', name, language, exportedOnly: exportedOnly ?? false, maxResults: maxResults ?? 100 },
+          resolved.repositories,
         )
 
-        // JSON format - return raw results array
-        if (response_format === 'json') {
-          return {
-            content: [{ type: 'text', text: JSON.stringify(results, null, 2) }],
-          }
-        }
-
-        // Markdown format (default)
-        return {
-          content: [
-            {
-              type: 'text',
-              text: formatSymbolResults(results, 'class', name),
-            },
-          ],
-        }
+        return formatToolResponse(response_format, results, () => formatSymbolResults(results, 'class', name))
       }
       catch (error) {
-        return {
-          content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
-          isError: true,
-        }
+        return handleToolError(error, 'find_classes')
       }
     },
   )
@@ -261,62 +195,24 @@ Examples:
 Error Handling:
   - "No repositories found" if no repos registered or repoFilter matches nothing
   - "No types found" if search returns empty`,
-      inputSchema: z.object({
-        name: z.string().min(1).optional().describe('Type name pattern'),
-        repoFilter: z.string().optional().describe('Repository aliases or paths to search (comma-separated)'),
-        language: z.enum(['typescript', 'javascript', 'ts', 'js']).optional().describe('Filter by language (typescript, javascript, ts, js)'),
-        exportedOnly: z.boolean().optional().describe('Only return exported types'),
-        maxResults: z.number().int().min(1).max(500).optional().describe('Maximum results (default: 100, max: 500)'),
-        response_format: z.enum(['json', 'markdown']).optional().describe('Output format: "markdown" (default) or "json"'),
-      }).strict(),
-      annotations: {
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
+      inputSchema: symbolInputSchema('Type name pattern'),
+      annotations: symbolAnnotations,
     },
     async ({ name, repoFilter, language, exportedOnly, maxResults, response_format }) => {
       logger.debug('Tool find_types called', { name, repoFilter, language, response_format })
       try {
-        const repos = splitCommaSeparated(repoFilter)
-        const repositories = repoManager.resolveIdentifiers(repos)
+        const resolved = resolveRepositories(repoManager, repoFilter)
+        if ('error' in resolved) return resolved.error
 
-        if (repositories.length === 0) {
-          return {
-            content: [{ type: 'text', text: 'No repositories found. Use repolens_register_repository to add repositories, or check repoFilter value matches registered repos.' }],
-            isError: true,
-          }
-        }
-
-        // Search both types and interfaces in a single pass
         const results = await symbolSearch.search(
           { kinds: ['type', 'interface'], name, language, exportedOnly: exportedOnly ?? false, maxResults: maxResults ?? 100 },
-          repositories,
+          resolved.repositories,
         )
 
-        // JSON format - return raw results array
-        if (response_format === 'json') {
-          return {
-            content: [{ type: 'text', text: JSON.stringify(results, null, 2) }],
-          }
-        }
-
-        // Markdown format (default)
-        return {
-          content: [
-            {
-              type: 'text',
-              text: formatSymbolResults(results, 'type', name),
-            },
-          ],
-        }
+        return formatToolResponse(response_format, results, () => formatSymbolResults(results, 'type', name))
       }
       catch (error) {
-        return {
-          content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
-          isError: true,
-        }
+        return handleToolError(error, 'find_types')
       }
     },
   )
