@@ -51,6 +51,22 @@ const symbolAnnotations = {
   openWorldHint: false,
 } as const
 
+const symbolOutputSchema = {
+  count: z.number().int().describe('Number of results returned'),
+  results: z.array(z.object({
+    repository: z.string(),
+    repositoryAlias: z.string().optional(),
+    filePath: z.string(),
+    relativePath: z.string(),
+    name: z.string(),
+    kind: z.string(),
+    startLine: z.number().int(),
+    endLine: z.number().int(),
+    signature: z.string().optional(),
+    exported: z.boolean(),
+  })).describe('Array of symbol results'),
+}
+
 function symbolInputSchema(nameDescription: string) {
   return z.object({
     name: z.string().min(1).optional().describe(nameDescription),
@@ -96,6 +112,7 @@ Error Handling:
   - "No repositories found" if no repos registered or repoFilter matches nothing
   - "No functions found" if search returns empty`,
       inputSchema: symbolInputSchema('Function name pattern (supports wildcards like \'handle*\')'),
+      outputSchema: symbolOutputSchema,
       annotations: symbolAnnotations,
     },
     async ({ name, repoFilter, language, exportedOnly, maxResults, response_format }) => {
@@ -146,6 +163,7 @@ Error Handling:
   - "No repositories found" if no repos registered or repoFilter matches nothing
   - "No classes found" if search returns empty`,
       inputSchema: symbolInputSchema('Class name pattern'),
+      outputSchema: symbolOutputSchema,
       annotations: symbolAnnotations,
     },
     async ({ name, repoFilter, language, exportedOnly, maxResults, response_format }) => {
@@ -196,6 +214,7 @@ Error Handling:
   - "No repositories found" if no repos registered or repoFilter matches nothing
   - "No types found" if search returns empty`,
       inputSchema: symbolInputSchema('Type name pattern'),
+      outputSchema: symbolOutputSchema,
       annotations: symbolAnnotations,
     },
     async ({ name, repoFilter, language, exportedOnly, maxResults, response_format }) => {

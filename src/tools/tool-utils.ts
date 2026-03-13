@@ -6,6 +6,7 @@ import { splitCommaSeparated } from '../utils/string-utils.js'
 
 interface ToolResponse {
   content: Array<{ type: string, text: string }>
+  structuredContent?: Record<string, unknown>
   isError?: boolean
 }
 
@@ -33,7 +34,7 @@ export function resolveRepositories(
 }
 
 /**
- * Format a tool response with JSON/markdown switching and character limit truncation.
+ * Format a tool response with JSON/markdown switching, structured content, and character limit truncation.
  */
 export function formatToolResponse(
   responseFormat: 'json' | 'markdown' | undefined,
@@ -41,6 +42,7 @@ export function formatToolResponse(
   formatMarkdown: () => string,
 ): ToolResponse {
   let text: string
+  let outputResults = results
 
   if (responseFormat === 'json') {
     text = JSON.stringify(results, null, 2)
@@ -50,15 +52,21 @@ export function formatToolResponse(
   }
 
   if (text.length > CHARACTER_LIMIT) {
-    const truncatedResults = results.slice(0, Math.max(1, Math.floor(results.length / 2)))
+    outputResults = results.slice(0, Math.max(1, Math.floor(results.length / 2)))
     const retryText = responseFormat === 'json'
-      ? JSON.stringify(truncatedResults, null, 2)
+      ? JSON.stringify(outputResults, null, 2)
       : formatMarkdown()
 
-    text = `${retryText}\n\n---\n_Response truncated from ${results.length} to ${truncatedResults.length} results. Use \`maxResults\` or add filters to narrow your search._`
+    text = `${retryText}\n\n---\n_Response truncated from ${results.length} to ${outputResults.length} results. Use \`maxResults\` or add filters to narrow your search._`
   }
 
-  return { content: [{ type: 'text', text }] }
+  return {
+    content: [{ type: 'text', text }],
+    structuredContent: {
+      count: outputResults.length,
+      results: outputResults,
+    },
+  }
 }
 
 /**

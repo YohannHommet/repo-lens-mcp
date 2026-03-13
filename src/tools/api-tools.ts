@@ -84,6 +84,20 @@ Error Handling:
         maxResults: z.number().int().min(1).max(500).optional().describe('Maximum results (default: 100, max: 500)'),
         response_format: z.enum(['json', 'markdown']).optional().describe('Output format: "markdown" (default) or "json"'),
       }).strict(),
+      outputSchema: {
+        count: z.number().int().describe('Number of results returned'),
+        results: z.array(z.object({
+          repository: z.string(),
+          repositoryAlias: z.string().optional(),
+          method: z.string(),
+          path: z.string(),
+          handler: z.string(),
+          filePath: z.string(),
+          relativePath: z.string(),
+          lineNumber: z.number().int(),
+          framework: z.string().optional(),
+        })).describe('Array of API route results'),
+      },
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
