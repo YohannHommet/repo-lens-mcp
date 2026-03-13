@@ -63,19 +63,6 @@ Map all API endpoints across Express, NestJS, Fastify, and Laravel projects. Fin
 
 ---
 
-## Roadmap
-
-- **Phase 1 (Current):** Stability, Multi-repo, Basic AST
-- **Phase 2 (Q1 2026):** Cross-file references, Smart Context Summaries
-- **Phase 2.5 (Q1 2026):** Python support (symbol search + Flask/Django routes)
-- **Phase 3 (Q2 2026):** Semantic Search (Local Embeddings)
-- **Phase 3.5 (Q2 2026):** Go & Rust support
-- **Phase 4.5 (Q3 2026):** Java & C# support
-
-[Check the full ROADMAP.md](ROADMAP.md) | [Language Expansion Plan](docs/LANGUAGE_EXPANSION.md)
-
----
-
 ## Installation
 
 ### Claude Desktop / VS Code (Recommended)
@@ -100,9 +87,9 @@ Restart Claude, and you're ready to go.
 ```bash
 git clone https://github.com/YohannHommet/repo-lens-mcp.git
 cd repo-lens-mcp
-npm install
-npm run build
-npm run dev
+pnpm install
+pnpm build
+pnpm dev
 ```
 
 ---
@@ -115,14 +102,14 @@ Manage which repositories are available for cross-repo search:
 
 | Tool | Description |
 |:---|:---|
-| `register_repository` | Add or update a git repository (`force: true` to update existing) |
-| `repositories` | List, view, or remove repositories |
+| `repolens_register_repository` | Add or update a git repository (`force: true` to update existing) |
+| `repolens_repositories` | List, view, or remove repositories |
 
-**`repositories` usage patterns:**
-- `repositories()` → List all repos
-- `repositories({ identifier: 'my-api' })` → Get details of one repo
-- `repositories({ identifier: 'my-api', remove: true })` → Remove that repo
-- `repositories({ tags: ['frontend'] })` → List repos filtered by tags
+**`repolens_repositories` usage patterns:**
+- `repolens_repositories()` → List all repos
+- `repolens_repositories({ identifier: 'my-api' })` → Get details of one repo
+- `repolens_repositories({ identifier: 'my-api', remove: true })` → Remove that repo
+- `repolens_repositories({ tags: ['frontend'] })` → List repos filtered by tags
 
 ### Symbol Search (3 tools)
 
@@ -130,15 +117,15 @@ AST-based structural search powered by ast-grep:
 
 | Tool | Description |
 |:---|:---|
-| `find_functions` | Find function/method definitions (supports wildcards like `handle*`) |
-| `find_classes` | Find class definitions |
-| `find_types` | Find TypeScript interfaces and type aliases |
+| `repolens_find_functions` | Find function/method definitions (supports wildcards like `handle*`) |
+| `repolens_find_classes` | Find class definitions |
+| `repolens_find_types` | Find TypeScript interfaces and type aliases (single-pass search) |
 
 ### API Route Discovery (1 tool)
 
 | Tool | Description |
 |:---|:---|
-| `find_api_routes` | Map API endpoints across Express, NestJS, Fastify, Laravel |
+| `repolens_find_api_routes` | Map API endpoints across Express, NestJS, Fastify, Laravel |
 
 ---
 
@@ -149,7 +136,7 @@ AST-based structural search powered by ast-grep:
 > "Register the backend at /path/to/backend-api"
 
 ```
-register_repository(path: "/path/to/backend-api", alias: "backend")
+repolens_register_repository(path: "/path/to/backend-api", alias: "backend")
 ```
 
 ### 2. Find an API Endpoint
@@ -157,7 +144,7 @@ register_repository(path: "/path/to/backend-api", alias: "backend")
 > "Find the Express route that handles POST requests to /login"
 
 ```
-find_api_routes(framework: "express", method: "POST", pathPattern: "/login")
+repolens_find_api_routes(framework: "express", method: "POST", pathPattern: "/login")
 ```
 
 ### 3. Search Functions Across Repos
@@ -165,7 +152,7 @@ find_api_routes(framework: "express", method: "POST", pathPattern: "/login")
 > "Find all functions starting with 'handle' across all my registered repos"
 
 ```
-find_functions(name: "handle*")
+repolens_find_functions(name: "handle*")
 ```
 
 ### 4. Find a Specific Class
@@ -173,7 +160,7 @@ find_functions(name: "handle*")
 > "Where is the UserService class defined?"
 
 ```
-find_classes(name: "UserService")
+repolens_find_classes(name: "UserService")
 ```
 
 ---
