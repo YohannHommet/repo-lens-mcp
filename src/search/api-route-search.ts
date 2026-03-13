@@ -5,6 +5,7 @@ import type { APIRoute, APIRouteSearchOptions } from '../types/symbols.js'
 import { readFile } from 'node:fs/promises'
 import { parse } from '@ast-grep/napi'
 import fg from 'fast-glob'
+import pLimit from 'p-limit'
 import { getLanguageFromExtension, SupportedLanguage } from '../constants.js'
 import { logger } from '../utils/logger.js'
 import { getRelativePath } from '../utils/path-utils.js'
@@ -61,24 +62,28 @@ export class APIRouteSearchEngine {
       onlyFiles: true,
     })
 
-    // Process files in parallel batches
-    for (let i = 0; i < files.length && results.length < maxResults; i += FILE_CONCURRENCY) {
-      const batch = files.slice(i, Math.min(i + FILE_CONCURRENCY, files.length))
+    const limit = pLimit(FILE_CONCURRENCY)
+    let resultCount = 0
 
-      const batchResults = await Promise.all(
-        batch.map(filePath =>
-          this.findRoutesInFile(filePath, repo, options).catch((error) => {
+    const fileResults = await Promise.all(
+      files.map(filePath =>
+        limit(() => {
+          if (resultCount >= maxResults) return Promise.resolve([])
+          return this.findRoutesInFile(filePath, repo, options).then((results) => {
+            resultCount += results.length
+            return results
+          }).catch((error) => {
             logger.debug('Error parsing file for API routes', { filePath, error })
             return []
-          }),
-        ),
-      )
+          })
+        }),
+      ),
+    )
 
-      for (const fileResults of batchResults) {
-        results.push(...fileResults)
-        if (results.length >= maxResults)
-          break
-      }
+    for (const fileResult of fileResults) {
+      results.push(...fileResult)
+      if (results.length >= maxResults)
+        break
     }
 
     return results.slice(0, maxResults)
@@ -104,7 +109,6 @@ export class APIRouteSearchEngine {
     const pathHasRouteIndicators = lowerPath.includes('route') || lowerPath.includes('controller')
 
     // For files without path indicators, we still need to read content to check
-    // But we can skip PHP files without 'route' in path (they need Route:: facade)
     if (language === SupportedLanguage.PHP && !pathHasRouteIndicators) {
       return routes
     }
@@ -115,13 +119,11 @@ export class APIRouteSearchEngine {
     const lowerContent = content.toLowerCase()
 
     if (language === SupportedLanguage.PHP) {
-      // For PHP, check for Laravel Route facade
       if (!lowerContent.includes('route::')) {
         return routes
       }
     }
     else if (!pathHasRouteIndicators) {
-      // For JS/TS without path indicators, check content for route patterns
       const hasRouteIndicators
         = lowerContent.includes('.get(')
           || lowerContent.includes('.post(')
@@ -148,7 +150,6 @@ export class APIRouteSearchEngine {
       root = parse(langKey as any, content)
     }
     catch {
-      // Should only happen if language not supported by current ast-grep build
       return routes
     }
 
@@ -158,13 +159,8 @@ export class APIRouteSearchEngine {
       routes.push(...this.findLaravelRoutes(rootNode, filePath, repo, options))
     }
     else {
-      // Express routes: app.get(), router.post(), etc.
       routes.push(...this.findExpressRoutes(rootNode, filePath, repo, options))
-
-      // Fastify routes: fastify.get(), app.route()
       routes.push(...this.findFastifyRoutes(rootNode, filePath, repo, options))
-
-      // NestJS decorators: @Get(), @Post(), etc.
       routes.push(...this.findNestJSRoutes(rootNode, content, filePath, repo, options))
     }
 

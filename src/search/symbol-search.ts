@@ -5,6 +5,7 @@ import type { SymbolKind, SymbolResult, SymbolSearchOptions } from '../types/sym
 import { readFile } from 'node:fs/promises'
 import { parse } from '@ast-grep/napi'
 import fg from 'fast-glob'
+import pLimit from 'p-limit'
 import { SYMBOL_SEARCH_IGNORE_PATTERNS } from '../constants.js'
 import { getLangFromFile, getLangNameFromFile, getSupportedExtensions } from '../parsers/language-registry.js'
 import { LANGUAGE_PATTERNS } from '../parsers/patterns/index.js'
@@ -59,24 +60,28 @@ export class SymbolSearchEngine {
       onlyFiles: true,
     })
 
-    // Process files in parallel batches
-    for (let i = 0; i < files.length && results.length < maxResults; i += FILE_CONCURRENCY) {
-      const batch = files.slice(i, Math.min(i + FILE_CONCURRENCY, files.length))
+    const limit = pLimit(FILE_CONCURRENCY)
+    let resultCount = 0
 
-      const batchResults = await Promise.all(
-        batch.map(filePath =>
-          this.searchInFile(repo, filePath, options).catch((error) => {
+    const fileResults = await Promise.all(
+      files.map(filePath =>
+        limit(() => {
+          if (resultCount >= maxResults) return Promise.resolve([])
+          return this.searchInFile(repo, filePath, options).then((results) => {
+            resultCount += results.length
+            return results
+          }).catch((error) => {
             logger.debug('Error parsing file', { filePath, error })
             return []
-          }),
-        ),
-      )
+          })
+        }),
+      ),
+    )
 
-      for (const fileResults of batchResults) {
-        results.push(...fileResults)
-        if (results.length >= maxResults)
-          break
-      }
+    for (const fileResult of fileResults) {
+      results.push(...fileResult)
+      if (results.length >= maxResults)
+        break
     }
 
     // Clear file-level caches after repo search
