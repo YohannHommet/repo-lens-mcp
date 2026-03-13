@@ -58,6 +58,7 @@ export class SymbolSearchEngine {
       ignore: SYMBOL_SEARCH_IGNORE_PATTERNS,
       absolute: true,
       onlyFiles: true,
+      followSymbolicLinks: false,
     })
 
     const limit = pLimit(FILE_CONCURRENCY)

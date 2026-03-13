@@ -60,6 +60,7 @@ export class APIRouteSearchEngine {
       ignore: API_ROUTE_IGNORE_PATTERNS,
       absolute: true,
       onlyFiles: true,
+      followSymbolicLinks: false,
     })
 
     const limit = pLimit(FILE_CONCURRENCY)
