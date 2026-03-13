@@ -143,12 +143,9 @@ export class APIRouteSearchEngine {
       }
     }
 
-    // Adjust language key for ast-grep if needed
-    const langKey = (language === SupportedLanguage.JavaScript || language === SupportedLanguage.TypeScript) ? language : SupportedLanguage.PHP
-
     let root
     try {
-      root = parse(langKey as any, content)
+      root = parse(language as any, content)
     }
     catch {
       return routes
@@ -156,7 +153,7 @@ export class APIRouteSearchEngine {
 
     const rootNode = root.root()
 
-    if (langKey === SupportedLanguage.PHP) {
+    if (language === SupportedLanguage.PHP) {
       routes.push(...this.findLaravelRoutes(rootNode, filePath, repo, options))
     }
     else {

@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import phpLang from '@ast-grep/lang-php'
+import { registerDynamicLanguage } from '@ast-grep/napi'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 
@@ -13,6 +15,9 @@ import {
   registerSymbolTools,
 } from './tools/index.js'
 import { logger } from './utils/logger.js'
+
+// Register PHP as a dynamic language for ast-grep
+registerDynamicLanguage({ php: phpLang })
 
 // Load configuration
 const config = loadConfig()
