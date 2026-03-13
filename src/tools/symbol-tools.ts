@@ -78,7 +78,7 @@ Error Handling:
       inputSchema: z.object({
         name: z.string().min(1).optional().describe('Function name pattern (supports wildcards like \'handle*\')'),
         repoFilter: z.string().optional().describe('Repository aliases or paths to search (comma-separated)'),
-        language: z.string().optional().describe('Filter by language (typescript, javascript)'),
+        language: z.enum(['typescript', 'javascript', 'ts', 'js']).optional().describe('Filter by language (typescript, javascript, ts, js)'),
         exportedOnly: z.boolean().optional().describe('Only return exported functions (default: false)'),
         maxResults: z.number().int().min(1).max(500).optional().describe('Maximum results (default: 100, max: 500)'),
         response_format: z.enum(['json', 'markdown']).optional().describe('Output format: "markdown" (default) or "json"'),
@@ -171,7 +171,7 @@ Error Handling:
       inputSchema: z.object({
         name: z.string().min(1).optional().describe('Class name pattern'),
         repoFilter: z.string().optional().describe('Repository aliases or paths to search (comma-separated)'),
-        language: z.string().optional().describe('Filter by language'),
+        language: z.enum(['typescript', 'javascript', 'ts', 'js']).optional().describe('Filter by language (typescript, javascript, ts, js)'),
         exportedOnly: z.boolean().optional().describe('Only return exported classes'),
         maxResults: z.number().int().min(1).max(500).optional().describe('Maximum results (default: 100, max: 500)'),
         response_format: z.enum(['json', 'markdown']).optional().describe('Output format: "markdown" (default) or "json"'),
@@ -264,7 +264,7 @@ Error Handling:
       inputSchema: z.object({
         name: z.string().min(1).optional().describe('Type name pattern'),
         repoFilter: z.string().optional().describe('Repository aliases or paths to search (comma-separated)'),
-        language: z.string().optional().describe('Filter by language'),
+        language: z.enum(['typescript', 'javascript', 'ts', 'js']).optional().describe('Filter by language (typescript, javascript, ts, js)'),
         exportedOnly: z.boolean().optional().describe('Only return exported types'),
         maxResults: z.number().int().min(1).max(500).optional().describe('Maximum results (default: 100, max: 500)'),
         response_format: z.enum(['json', 'markdown']).optional().describe('Output format: "markdown" (default) or "json"'),
