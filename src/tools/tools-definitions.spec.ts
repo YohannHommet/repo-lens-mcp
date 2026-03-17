@@ -109,4 +109,21 @@ describe('symbol tool definitions', () => {
       expect(inner._def.entries, `${toolName} language enum should have entries`).toBeDefined()
     }
   })
+
+  it('should include php in language enum for all symbol tools', () => {
+    const toolServer = {
+      registerTool: vi.fn(),
+    } as unknown as McpServer
+
+    registerSymbolTools(toolServer, mockRepoManager as any, {} as any)
+
+    const toolNames = ['repolens_find_functions', 'repolens_find_classes', 'repolens_find_types']
+    for (const toolName of toolNames) {
+      const call = (toolServer.registerTool as any).mock.calls.find((c: any) => c[0] === toolName)
+      const languageSchema = call[1].inputSchema.shape.language
+      const inner = languageSchema._def.innerType || languageSchema
+      expect(inner._def.entries, `${toolName} should have entries`).toBeDefined()
+      expect(inner._def.entries, `${toolName} should include php`).toHaveProperty('php')
+    }
+  })
 })

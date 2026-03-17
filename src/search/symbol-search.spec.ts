@@ -55,6 +55,7 @@ function createMockAst(symbols: Array<{
   endLine: number
   text: string
   isExported?: boolean
+  nodeKind?: string
 }>) {
   const matches = symbols.map(sym => ({
     getMatch: (key: string) => key === 'NAME' ? { text: () => sym.name } : null,
@@ -63,7 +64,7 @@ function createMockAst(symbols: Array<{
       end: { line: sym.endLine - 1, index: 100 },
     }),
     text: () => sym.text,
-    kind: () => sym.isExported ? 'export_statement' : 'function_declaration',
+    kind: () => sym.nodeKind ?? (sym.isExported ? 'export_statement' : 'function_declaration'),
     parent: () => sym.isExported
       ? { kind: () => 'export_statement', parent: () => null }
       : { kind: () => 'program', parent: () => null },
@@ -757,6 +758,193 @@ export default greet`
 
       // Assert
       expect(results[0].signature).toContain('class User extends Base')
+    })
+  })
+
+  // ===========================================================================
+  // PHP Symbol Search
+  // ===========================================================================
+
+  describe('PHP symbol search', () => {
+    it('should find PHP functions', async () => {
+      // Arrange
+      mockFg.mockResolvedValue(['/projects/app/src/helpers.php'])
+      mockReadFile.mockResolvedValue('<?php\nfunction createUser($data) { return $data; }')
+      mockParse.mockReturnValue(createMockAst([{
+        name: 'createUser',
+        kind: 'function',
+        startLine: 2,
+        endLine: 2,
+        text: 'function createUser($data) { return $data; }',
+        nodeKind: 'function_definition',
+      }]))
+
+      const repo = createMockRepo()
+
+      // Act
+      const results = await engine.search({ kind: 'function' }, [repo])
+
+      // Assert
+      expect(results).toHaveLength(1)
+      expect(results[0].name).toBe('createUser')
+      expect(results[0].kind).toBe('function')
+    })
+
+    it('should find PHP classes', async () => {
+      // Arrange
+      mockFg.mockResolvedValue(['/projects/app/src/UserController.php'])
+      mockReadFile.mockResolvedValue('<?php\nclass UserController extends Controller { }')
+      mockParse.mockReturnValue(createMockAst([{
+        name: 'UserController',
+        kind: 'class',
+        startLine: 2,
+        endLine: 2,
+        text: 'class UserController extends Controller { }',
+        nodeKind: 'class_declaration',
+      }]))
+
+      const repo = createMockRepo()
+
+      // Act
+      const results = await engine.search({ kind: 'class' }, [repo])
+
+      // Assert
+      expect(results).toHaveLength(1)
+      expect(results[0].name).toBe('UserController')
+      expect(results[0].kind).toBe('class')
+    })
+
+    it('should find PHP traits (mapped to class kind)', async () => {
+      // Arrange
+      mockFg.mockResolvedValue(['/projects/app/src/HasTimestamps.php'])
+      mockReadFile.mockResolvedValue('<?php\ntrait HasTimestamps { }')
+      mockParse.mockReturnValue(createMockAst([{
+        name: 'HasTimestamps',
+        kind: 'class',
+        startLine: 2,
+        endLine: 2,
+        text: 'trait HasTimestamps { }',
+        nodeKind: 'trait_declaration',
+      }]))
+
+      const repo = createMockRepo()
+
+      // Act
+      const results = await engine.search({ kind: 'class' }, [repo])
+
+      // Assert
+      expect(results).toHaveLength(1)
+      expect(results[0].name).toBe('HasTimestamps')
+      expect(results[0].kind).toBe('class')
+    })
+
+    it('should find PHP interfaces', async () => {
+      // Arrange
+      mockFg.mockResolvedValue(['/projects/app/src/UserRepository.php'])
+      mockReadFile.mockResolvedValue('<?php\ninterface UserRepositoryInterface { }')
+      mockParse.mockReturnValue(createMockAst([{
+        name: 'UserRepositoryInterface',
+        kind: 'interface',
+        startLine: 2,
+        endLine: 2,
+        text: 'interface UserRepositoryInterface { }',
+        nodeKind: 'interface_declaration',
+      }]))
+
+      const repo = createMockRepo()
+
+      // Act
+      const results = await engine.search({ kind: 'interface' }, [repo])
+
+      // Assert
+      expect(results).toHaveLength(1)
+      expect(results[0].name).toBe('UserRepositoryInterface')
+      expect(results[0].kind).toBe('interface')
+    })
+
+    it('should find PHP enums', async () => {
+      // Arrange
+      mockFg.mockResolvedValue(['/projects/app/src/Status.php'])
+      mockReadFile.mockResolvedValue('<?php\nenum Status: string { case Active = "active"; }')
+      mockParse.mockReturnValue(createMockAst([{
+        name: 'Status',
+        kind: 'enum',
+        startLine: 2,
+        endLine: 2,
+        text: 'enum Status: string { case Active = "active"; }',
+        nodeKind: 'enum_declaration',
+      }]))
+
+      const repo = createMockRepo()
+
+      // Act
+      const results = await engine.search({ kind: 'enum' }, [repo])
+
+      // Assert
+      expect(results).toHaveLength(1)
+      expect(results[0].name).toBe('Status')
+      expect(results[0].kind).toBe('enum')
+    })
+
+    it('should mark namespace-level PHP function as exported', async () => {
+      // Arrange
+      mockFg.mockResolvedValue(['/projects/app/src/helpers.php'])
+      mockReadFile.mockResolvedValue('<?php\nfunction bar() { }')
+      mockParse.mockReturnValue(createMockAst([{
+        name: 'bar',
+        kind: 'function',
+        startLine: 2,
+        endLine: 2,
+        text: 'function bar() { }',
+        nodeKind: 'function_definition',
+      }]))
+
+      const repo = createMockRepo()
+
+      // Act
+      const results = await engine.search({ kind: 'function' }, [repo])
+
+      // Assert
+      expect(results).toHaveLength(1)
+      expect(results[0].exported).toBe(true)
+    })
+
+    it('should mark private PHP method as not exported', async () => {
+      // Arrange
+      mockFg.mockResolvedValue(['/projects/app/src/Service.php'])
+      mockReadFile.mockResolvedValue('<?php\nprivate function secret() { }')
+      mockParse.mockReturnValue(createMockAst([{
+        name: 'secret',
+        kind: 'function',
+        startLine: 2,
+        endLine: 2,
+        text: 'private function secret() { }',
+        nodeKind: 'method_declaration',
+      }]))
+
+      const repo = createMockRepo()
+
+      // Act
+      const results = await engine.search({ kind: 'function' }, [repo])
+
+      // Assert
+      expect(results).toHaveLength(1)
+      expect(results[0].exported).toBe(false)
+    })
+
+    it('should use *.php glob when language filter is php', async () => {
+      // Arrange
+      mockFg.mockResolvedValue([])
+      const repo = createMockRepo()
+
+      // Act
+      await engine.search({ kind: 'function', language: 'php' }, [repo])
+
+      // Assert
+      expect(mockFg).toHaveBeenCalledWith(
+        ['**/*.php'],
+        expect.any(Object),
+      )
     })
   })
 })
