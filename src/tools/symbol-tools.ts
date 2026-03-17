@@ -42,7 +42,7 @@ function formatSymbolResults(results: SymbolResult[], kind: string, pattern: str
   return lines.join('\n')
 }
 
-const languageEnum = z.enum(['typescript', 'javascript', 'ts', 'js'])
+const languageEnum = z.enum(['typescript', 'javascript', 'ts', 'js', 'php'])
 
 const symbolAnnotations = {
   readOnlyHint: true,
@@ -71,7 +71,7 @@ function symbolInputSchema(nameDescription: string) {
   return z.object({
     name: z.string().min(1).optional().describe(nameDescription),
     repoFilter: z.string().optional().describe('Repository aliases or paths to search (comma-separated)'),
-    language: languageEnum.optional().describe('Filter by language (typescript, javascript, ts, js)'),
+    language: languageEnum.optional().describe('Filter by language (typescript, javascript, php, ts, js)'),
     exportedOnly: z.boolean().optional().describe('Only return exported symbols (default: false)'),
     maxResults: z.number().int().min(1).max(500).optional().describe('Maximum results (default: 100, max: 500)'),
     response_format: z.enum(['json', 'markdown']).optional().describe('Output format: "markdown" (default) or "json"'),
@@ -89,12 +89,12 @@ export function registerSymbolTools(
       title: 'Find Functions',
       description: `Find function and method definitions across repositories using AST analysis.
 
-Searches registered repositories for function declarations, arrow functions, and class methods. Uses ast-grep for accurate structural matching rather than text search.
+Searches registered repositories for function declarations, arrow functions, and class methods in JS/TS and PHP. Uses ast-grep for accurate structural matching rather than text search.
 
 Args:
   - name (string, optional): Function name pattern. Supports wildcards: "handle*", "*Controller", "*user*"
   - repoFilter (string, optional): Comma-separated repository aliases or paths to limit search scope
-  - language (string, optional): Filter by language: "typescript", "javascript"
+  - language (string, optional): Filter by language: "typescript", "javascript", "php"
   - exportedOnly (boolean, optional): Only return exported functions (default: false)
   - maxResults (number, optional): Maximum results to return (default: 100)
   - response_format (string, optional): Output format - "markdown" (default) or "json"
@@ -140,12 +140,12 @@ Error Handling:
       title: 'Find Classes',
       description: `Find class definitions across repositories using AST analysis.
 
-Searches registered repositories for class declarations. Uses ast-grep for accurate structural matching.
+Searches registered repositories for class declarations. Also finds PHP traits. Uses ast-grep for accurate structural matching.
 
 Args:
   - name (string, optional): Class name pattern. Supports wildcards: "*Service", "*Controller", "Base*"
   - repoFilter (string, optional): Comma-separated repository aliases or paths to limit search scope
-  - language (string, optional): Filter by language: "typescript", "javascript"
+  - language (string, optional): Filter by language: "typescript", "javascript", "php"
   - exportedOnly (boolean, optional): Only return exported classes (default: false)
   - maxResults (number, optional): Maximum results to return (default: 100)
   - response_format (string, optional): Output format - "markdown" (default) or "json"
@@ -189,14 +189,14 @@ Error Handling:
     'repolens_find_types',
     {
       title: 'Find Types',
-      description: `Find TypeScript type aliases and interface definitions across repositories using AST analysis.
+      description: `Find type aliases and interface definitions across repositories using AST analysis.
 
-Searches registered repositories for both "type" and "interface" declarations. Uses ast-grep for accurate structural matching.
+Searches registered repositories for both "type" and "interface" declarations. For PHP, finds interface declarations (PHP has no type aliases). Uses ast-grep for accurate structural matching.
 
 Args:
   - name (string, optional): Type/interface name pattern. Supports wildcards: "*Props", "*Config", "I*"
   - repoFilter (string, optional): Comma-separated repository aliases or paths to limit search scope
-  - language (string, optional): Filter by language: "typescript" (types are TypeScript-specific)
+  - language (string, optional): Filter by language: "typescript", "javascript", "php"
   - exportedOnly (boolean, optional): Only return exported types (default: false)
   - maxResults (number, optional): Maximum results to return (default: 100, split between types and interfaces)
   - response_format (string, optional): Output format - "markdown" (default) or "json"
