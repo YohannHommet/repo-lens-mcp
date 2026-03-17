@@ -175,7 +175,7 @@ export class SymbolSearchEngine {
           }
 
           // Check export status
-          const exported = this.checkExportStatus(match, name, content, filePath)
+          const exported = this.checkExportStatus(match, name, content, filePath, langName)
 
           // Apply exportedOnly filter
           if (options.exportedOnly && !exported) {
@@ -183,7 +183,7 @@ export class SymbolSearchEngine {
           }
 
           seenSymbols.add(symbolKey)
-          const signature = this.extractSignature(match.text(), matchKind)
+          const signature = this.extractSignature(match.text(), matchKind, langName)
 
           results.push({
             repository: repo.id,
@@ -271,7 +271,12 @@ export class SymbolSearchEngine {
   /**
    * Check if a symbol is exported using AST analysis and cached export block
    */
-  private checkExportStatus(match: SgNode, name: string, content: string, filePath: string): boolean {
+  private checkExportStatus(match: SgNode, name: string, content: string, filePath: string, langName: string): boolean {
+    // PHP export logic: namespace-level = exported, private/protected = not exported
+    if (langName === 'php') {
+      return this.checkPhpExportStatus(match)
+    }
+
     // 1. Check AST ancestry for export_statement
     // This handles: export function..., export class..., export const...
     try {
@@ -316,7 +321,20 @@ export class SymbolSearchEngine {
     return false
   }
 
-  private extractSignature(text: string, kind: SymbolKind): string {
+  private checkPhpExportStatus(match: SgNode): boolean {
+    try {
+      const text = match.text()
+      if (/^\s*(private|protected)\s/.test(text)) {
+        return false
+      }
+    }
+    catch {
+      // Ignore AST errors
+    }
+    return true
+  }
+
+  private extractSignature(text: string, kind: SymbolKind, langName: string): string {
     const lines = text.split('\n')
     const firstLine = lines[0]
 
@@ -325,19 +343,26 @@ export class SymbolSearchEngine {
       case 'method': {
         // Get just the function declaration without body
         // Fixed regex to be linear (no backtracking issues)
-        const funcMatch = firstLine.match(/^[^(]*\([^)]*\)(?:\s*:[^{]+)?/)
+        const funcMatch = firstLine.match(/^[^(]*\([^)]*\)(?:\s*:[^{;]+)?/)
         return funcMatch ? funcMatch[0].trim() : firstLine.replace('{', '').trim()
       }
 
       case 'class':
       case 'interface': {
-        // Get class/interface declaration
+        if (langName === 'php') {
+          const phpMatch = firstLine.match(/^(?:abstract\s+)?(?:final\s+)?(?:readonly\s+)?(?:class|interface|trait|enum)\s+\w[^{]*/)
+          return phpMatch ? phpMatch[0].trim() : firstLine.replace('{', '').trim()
+        }
         const classMatch = firstLine.match(/^(?:export\s+)?(?:abstract\s+)?(?:class|interface)\s+\w[^{]*/)
         return classMatch ? classMatch[0].trim() : firstLine.replace('{', '').trim()
       }
 
+      case 'enum': {
+        const enumMatch = firstLine.match(/^(?:export\s+)?(?:const\s+)?enum\s+\w[^{]*/)
+        return enumMatch ? enumMatch[0].trim() : firstLine.replace('{', '').trim()
+      }
+
       case 'type':
-        // Get full type definition (first line or until semicolon)
         return firstLine.trim()
 
       default:
@@ -351,6 +376,7 @@ export class SymbolSearchEngine {
       javascript: ['.js', '.jsx', '.mjs', '.cjs'],
       ts: ['.ts', '.tsx'],
       js: ['.js', '.jsx', '.mjs', '.cjs'],
+      php: ['.php'],
     }
     return langMap[language.toLowerCase()] || getSupportedExtensions()
   }
