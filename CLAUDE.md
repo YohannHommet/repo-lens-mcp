@@ -43,10 +43,10 @@ MCP request → StdioServerTransport → McpServer routes to tool handler
 
 - **`src/index.ts`**: Entry point — initializes RepositoryManager, search engines, registers tools, connects stdio transport
 - **`src/core/repository-manager.ts`**: In-memory repo registry with persistence via ConfigStore
-- **`src/search/symbol-search.ts`**: AST-based symbol search using ast-grep. Processes repos in parallel, files via p-limit (concurrency 8). Content pre-filter skips AST parsing when searched name isn't in file. Supports multi-kind search (`kinds: ['type', 'interface']`) for single-pass queries
+- **`src/search/symbol-search.ts`**: AST-based symbol search using ast-grep for JS/TS and PHP. Processes repos in parallel, files via p-limit (concurrency 8). Content pre-filter skips AST parsing when searched name isn't in file. Supports multi-kind search (`kinds: ['type', 'interface']`) for single-pass queries. Language-aware export detection (JS/TS: `export` keyword; PHP: `private`/`protected` = not exported)
 - **`src/search/api-route-search.ts`**: HTTP endpoint discovery for Express, Fastify, NestJS, Laravel. Uses cheap checks (extension → path indicators → content) before AST parsing. Files via p-limit (concurrency 8)
 - **`src/tools/tool-utils.ts`**: Shared tool helpers — repo resolution, response formatting with CHARACTER_LIMIT truncation, error handling
-- **`src/parsers/patterns/`**: ast-grep pattern definitions per language (currently TypeScript)
+- **`src/parsers/patterns/`**: ast-grep pattern definitions per language (TypeScript and PHP). PHP uses `@ast-grep/lang-php` dynamic language registered at startup in `src/index.ts`
 - **`src/core/config-store.ts`**: Persists repos to `~/.config/mcp-repo-search/repositories.json`
 
 ### Caching

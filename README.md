@@ -10,7 +10,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![MCP Ready](https://img.shields.io/badge/MCP-Ready-green?style=for-the-badge&logo=modelcontextprotocol&logoColor=white)](https://modelcontextprotocol.io)
 
-*Search functions, classes, and API routes across all your local repositories without switching context.*
+*Search functions, classes, and API routes across all your local JS/TS and PHP repositories without switching context.*
 
 </div>
 
@@ -25,6 +25,7 @@
 ### Use Cases
 
 - **Frontend + Backend development:** Search backend API routes while working in your frontend repo
+- **PHP + JS/TS projects:** Find PHP classes, traits, and interfaces alongside TypeScript types
 - **Microservices architecture:** Find function definitions across multiple services
 - **Monorepo navigation:** Search across packages without switching directories
 - **Code exploration:** Understand how different projects in your ecosystem connect
@@ -113,13 +114,13 @@ Manage which repositories are available for cross-repo search:
 
 ### Symbol Search (3 tools)
 
-AST-based structural search powered by ast-grep:
+AST-based structural search powered by ast-grep. Supports **JavaScript/TypeScript** and **PHP** (classes, traits, interfaces, enums, functions, methods, constants):
 
 | Tool | Description |
 |:---|:---|
-| `repolens_find_functions` | Find function/method definitions (supports wildcards like `handle*`) |
-| `repolens_find_classes` | Find class definitions |
-| `repolens_find_types` | Find TypeScript interfaces and type aliases (single-pass search) |
+| `repolens_find_functions` | Find function/method definitions in JS/TS and PHP (supports wildcards like `handle*`) |
+| `repolens_find_classes` | Find class definitions (also finds PHP traits) |
+| `repolens_find_types` | Find interfaces and type aliases (PHP: interfaces only) |
 
 ### API Route Discovery (1 tool)
 
