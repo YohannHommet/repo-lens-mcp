@@ -33,6 +33,10 @@ describe('language Registry', () => {
       expect(getLangFromFile('config.cjs')).toBe(Lang.JavaScript)
     })
 
+    it('should return php lang string for .php files', () => {
+      expect(getLangFromFile('controller.php')).toBe('php')
+    })
+
     it('should return null for unsupported extensions', () => {
       expect(getLangFromFile('script.py')).toBeNull()
       expect(getLangFromFile('main.go')).toBeNull()
@@ -79,6 +83,10 @@ describe('language Registry', () => {
       expect(getLangNameFromFile('config.cjs')).toBe('javascript')
     })
 
+    it('should return php for .php files', () => {
+      expect(getLangNameFromFile('controller.php')).toBe('php')
+    })
+
     it('should return null for unsupported extensions', () => {
       expect(getLangNameFromFile('script.py')).toBeNull()
     })
@@ -95,6 +103,10 @@ describe('language Registry', () => {
       expect(isSupportedFile('file.jsx')).toBe(true)
       expect(isSupportedFile('file.mjs')).toBe(true)
       expect(isSupportedFile('file.cjs')).toBe(true)
+    })
+
+    it('should return true for PHP files', () => {
+      expect(isSupportedFile('file.php')).toBe(true)
     })
 
     it('should return false for unsupported files', () => {
@@ -120,11 +132,12 @@ describe('language Registry', () => {
       expect(extensions).toContain('.jsx')
       expect(extensions).toContain('.mjs')
       expect(extensions).toContain('.cjs')
+      expect(extensions).toContain('.php')
     })
 
-    it('should return exactly 6 extensions', () => {
+    it('should return exactly 7 extensions', () => {
       const extensions = getSupportedExtensions()
-      expect(extensions).toHaveLength(6)
+      expect(extensions).toHaveLength(7)
     })
 
     it('should not contain unsupported extensions', () => {

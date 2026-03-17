@@ -1,4 +1,5 @@
 import type { SymbolKind } from '../../types/symbols.js'
+import { PHP_PATTERNS } from './php.js'
 import { TYPESCRIPT_ARROW_FUNCTION_PATTERNS, TYPESCRIPT_PATTERNS } from './typescript.js'
 
 export interface LanguagePatterns {
@@ -22,5 +23,8 @@ export const LANGUAGE_PATTERNS: Record<string, LanguagePatterns> = {
   jsx: {
     patterns: TYPESCRIPT_PATTERNS,
     arrowFunctions: TYPESCRIPT_ARROW_FUNCTION_PATTERNS,
+  },
+  php: {
+    patterns: PHP_PATTERNS,
   },
 }
