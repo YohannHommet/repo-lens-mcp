@@ -1,13 +1,8 @@
 import type { SimpleGit } from 'simple-git'
+import type { GitInfo } from '../types/repository.js'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { simpleGit } from 'simple-git'
-
-export interface GitInfo {
-  remote?: string
-  branch: string
-  lastCommit: string
-}
 
 export async function isGitRepository(path: string): Promise<boolean> {
   return existsSync(join(path, '.git'))

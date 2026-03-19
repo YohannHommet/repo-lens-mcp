@@ -9,8 +9,6 @@ import { performance } from 'node:perf_hooks'
 import { RepositoryManager } from '../src/core/repository-manager.js'
 import { SymbolSearchEngine } from '../src/search/symbol-search.js'
 
-const CONFIG_DIR = '/tmp/repo-lens-benchmark-multi'
-
 function formatMs(ms: number): string {
   if (ms < 1)
     return `${(ms * 1000).toFixed(0)}μs`
@@ -33,26 +31,23 @@ async function main() {
   console.log('═══════════════════════════════════════════════════════════')
   console.log()
 
-  const repoManager = new RepositoryManager(CONFIG_DIR)
+  // Initialize using ad-hoc repositories (no config file needed)
+  const mockLoader = { load: async () => [] } as any
+  const repoManager = new RepositoryManager(mockLoader)
+  await repoManager.load()
   const symbolSearch = new SymbolSearchEngine()
 
-  // Register all repos
-  console.log(`Registering ${repoPaths.length} repositories...`)
+  // Create ad-hoc repositories
+  console.log(`Setting up ${repoPaths.length} repositories...`)
   const regStart = performance.now()
-  for (const path of repoPaths) {
-    try {
-      await repoManager.register(path)
-      console.log(`  ✓ ${path}`)
-    }
-    catch (e: any) {
-      console.log(`  ✗ ${path}: ${e.message}`)
-    }
-  }
+  const repos = repoManager.createAdHocRepositories(repoPaths)
   const regEnd = performance.now()
-  console.log(`Total registration: ${formatMs(regEnd - regStart)}`)
+  for (const repo of repos) {
+    console.log(`  ✓ ${repo.path}`)
+  }
+  console.log(`Total setup: ${formatMs(regEnd - regStart)}`)
   console.log()
 
-  const repos = repoManager.list()
   console.log(`Searching across ${repos.length} repositories...`)
   console.log()
 
@@ -79,14 +74,6 @@ async function main() {
     console.log(`  ${repo}: ${count} functions`)
   }
   console.log()
-
-  // Cleanup
-  for (const repo of repos) {
-    try {
-      await repoManager.unregister(repo.id)
-    }
-    catch { /* ignore */ }
-  }
 
   console.log('═══════════════════════════════════════════════════════════')
   console.log('  Benchmark complete!')

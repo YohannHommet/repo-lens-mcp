@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 
+import phpLang from '@ast-grep/lang-php'
+import { registerDynamicLanguage } from '@ast-grep/napi'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 
 import { loadConfig } from './config/index.js'
+import { ConfigLoader } from './core/config-loader.js'
 import { RepositoryManager } from './core/repository-manager.js'
 import { APIRouteSearchEngine } from './search/api-route-search.js'
 import { SymbolSearchEngine } from './search/symbol-search.js'
@@ -14,19 +17,24 @@ import {
 } from './tools/index.js'
 import { logger } from './utils/logger.js'
 
+// Register PHP as a dynamic language for ast-grep
+// phpLang uses a lazy getter for libraryPath — runtime-compatible but types diverge
+registerDynamicLanguage({ php: phpLang } as any)
+
 // Load configuration
 const config = loadConfig()
 logger.setLevel(config.logLevel)
 
 // Initialize core components
-const repoManager = new RepositoryManager(config.configDir)
+const configLoader = new ConfigLoader(config.configFilePath)
+const repoManager = new RepositoryManager(configLoader)
 const symbolSearch = new SymbolSearchEngine()
 const apiRouteSearch = new APIRouteSearchEngine()
 
 // Initialize MCP Server
 const server = new McpServer({
   name: 'repo-lens-mcp',
-  version: '0.2.0',
+  version: '0.3.0',
 })
 
 // Register Tools
@@ -42,8 +50,8 @@ async function main(): Promise<void> {
   const transport = new StdioServerTransport()
   await server.connect(transport)
 
-  logger.info('MCP Repo Search Server started', {
-    configDir: config.configDir,
+  logger.info('MCP Repo Lens Server started', {
+    configFile: config.configFilePath,
     repositoryCount: repoManager.list().length,
   })
 }
@@ -56,15 +64,6 @@ async function shutdown(signal: string) {
   isShuttingDown = true
 
   logger.info(`Received ${signal}, shutting down gracefully...`)
-
-  try {
-    // No explicit save needed as operations persist immediately
-    logger.info('Shutting down...')
-  }
-  catch (error) {
-    logger.error('Error during shutdown', { error })
-  }
-
   process.exit(0)
 }
 

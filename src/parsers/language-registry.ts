@@ -8,6 +8,7 @@ const EXTENSION_TO_LANG: Record<string, Lang> = {
   '.jsx': Lang.JavaScript,
   '.mjs': Lang.JavaScript,
   '.cjs': Lang.JavaScript,
+  '.php': 'php' as Lang,
 }
 
 const EXTENSION_TO_LANG_NAME: Record<string, string> = {
@@ -17,6 +18,7 @@ const EXTENSION_TO_LANG_NAME: Record<string, string> = {
   '.jsx': 'jsx',
   '.mjs': 'javascript',
   '.cjs': 'javascript',
+  '.php': 'php',
 }
 
 export function getLangFromFile(filePath: string): Lang | null {
@@ -27,11 +29,6 @@ export function getLangFromFile(filePath: string): Lang | null {
 export function getLangNameFromFile(filePath: string): string | null {
   const ext = extname(filePath).toLowerCase()
   return EXTENSION_TO_LANG_NAME[ext] || null
-}
-
-export function isSupportedFile(filePath: string): boolean {
-  const ext = extname(filePath).toLowerCase()
-  return ext in EXTENSION_TO_LANG
 }
 
 export function getSupportedExtensions(): string[] {

@@ -1,22 +1,13 @@
 export interface ServerConfig {
-  configDir: string
+  configFilePath: string | null
   logLevel: 'debug' | 'info' | 'warn' | 'error'
 }
 
-export interface RepositoriesConfig {
-  version: number
-  repositories: SerializedRepository[]
-}
-
-export interface SerializedRepository {
-  id: string
+export interface RepoConfigEntry {
   path: string
   alias?: string
-  tags: string[]
-  gitInfo: {
-    remote?: string
-    branch: string
-    lastCommit: string
-  }
-  registeredAt: string
+}
+
+export interface RepoConfig {
+  repositories: RepoConfigEntry[]
 }

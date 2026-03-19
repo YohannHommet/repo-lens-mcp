@@ -5,18 +5,18 @@ import type { SymbolKind, SymbolResult, SymbolSearchOptions } from '../types/sym
 import { readFile } from 'node:fs/promises'
 import { parse } from '@ast-grep/napi'
 import fg from 'fast-glob'
-import { SYMBOL_SEARCH_IGNORE_PATTERNS } from '../constants.js'
+import pLimit from 'p-limit'
+import { FILE_CONCURRENCY, SYMBOL_SEARCH_IGNORE_PATTERNS } from '../constants.js'
 import { getLangFromFile, getLangNameFromFile, getSupportedExtensions } from '../parsers/language-registry.js'
+import type { SearchPattern } from '../parsers/patterns/index.js'
 import { LANGUAGE_PATTERNS } from '../parsers/patterns/index.js'
 import { logger } from '../utils/logger.js'
 import { getRelativePath } from '../utils/path-utils.js'
 
-const FILE_CONCURRENCY = 8
 const MAX_PATTERN_CACHE_SIZE = 100
 
 export class SymbolSearchEngine {
   private patternRegexCache = new Map<string, RegExp>()
-  private exportBlockCache = new Map<string, { named: Set<string>, default: string | null }>()
 
   async search(
     options: SymbolSearchOptions,
@@ -46,6 +46,7 @@ export class SymbolSearchEngine {
     maxResults: number,
   ): Promise<SymbolResult[]> {
     const results: SymbolResult[] = []
+    const exportBlockCache = new Map<string, { named: Set<string>, default: string | null }>()
     const extensions = options.language
       ? this.getExtensionsForLanguage(options.language)
       : getSupportedExtensions()
@@ -57,30 +58,32 @@ export class SymbolSearchEngine {
       ignore: SYMBOL_SEARCH_IGNORE_PATTERNS,
       absolute: true,
       onlyFiles: true,
+      followSymbolicLinks: false,
     })
 
-    // Process files in parallel batches
-    for (let i = 0; i < files.length && results.length < maxResults; i += FILE_CONCURRENCY) {
-      const batch = files.slice(i, Math.min(i + FILE_CONCURRENCY, files.length))
+    const limit = pLimit(FILE_CONCURRENCY)
+    let resultCount = 0
 
-      const batchResults = await Promise.all(
-        batch.map(filePath =>
-          this.searchInFile(repo, filePath, options).catch((error) => {
+    const fileResults = await Promise.all(
+      files.map(filePath =>
+        limit(() => {
+          if (resultCount >= maxResults) return Promise.resolve([])
+          return this.searchInFile(repo, filePath, options, exportBlockCache).then((results) => {
+            resultCount += results.length
+            return results
+          }).catch((error) => {
             logger.debug('Error parsing file', { filePath, error })
             return []
-          }),
-        ),
-      )
+          })
+        }),
+      ),
+    )
 
-      for (const fileResults of batchResults) {
-        results.push(...fileResults)
-        if (results.length >= maxResults)
-          break
-      }
+    for (const fileResult of fileResults) {
+      results.push(...fileResult)
+      if (results.length >= maxResults)
+        break
     }
-
-    // Clear file-level caches after repo search
-    this.exportBlockCache.clear()
 
     return results
   }
@@ -89,6 +92,7 @@ export class SymbolSearchEngine {
     repo: Repository,
     filePath: string,
     options: SymbolSearchOptions,
+    exportBlockCache: Map<string, { named: Set<string>, default: string | null }>,
   ): Promise<SymbolResult[]> {
     const results: SymbolResult[] = []
     const lang = getLangFromFile(filePath)
@@ -103,13 +107,33 @@ export class SymbolSearchEngine {
     if (!languagePatterns)
       return results
 
-    const patterns = languagePatterns.patterns[options.kind] || []
+    // Content pre-filter: skip AST parsing if the exact name isn't in the file
+    if (options.name && !options.name.includes('*')) {
+      if (!content.toLowerCase().includes(options.name.toLowerCase())) {
+        return results
+      }
+    }
 
-    // Also search arrow functions for function kind
-    const allPatterns
-      = options.kind === 'function' && languagePatterns.arrowFunctions
-        ? [...patterns, ...languagePatterns.arrowFunctions]
-        : patterns
+    // Resolve which kinds to search
+    const kindsToSearch = options.kinds ?? (options.kind ? [options.kind] : [])
+
+    if (kindsToSearch.length === 0)
+      return results
+
+    // Collect patterns tagged by kind
+    const allPatterns: Array<{ pattern: SearchPattern, kind: SymbolKind }> = []
+    for (const kind of kindsToSearch) {
+      const kindPatterns = languagePatterns.patterns[kind] || []
+      for (const pattern of kindPatterns) {
+        allPatterns.push({ pattern, kind })
+      }
+      // Also search arrow functions for function kind
+      if (kind === 'function' && languagePatterns.arrowFunctions) {
+        for (const pattern of languagePatterns.arrowFunctions) {
+          allPatterns.push({ pattern, kind })
+        }
+      }
+    }
 
     if (allPatterns.length === 0)
       return results
@@ -128,13 +152,15 @@ export class SymbolSearchEngine {
     // Track seen symbols to avoid duplicates
     const seenSymbols = new Set<string>()
 
-    for (const pattern of allPatterns) {
+    for (const { pattern, kind: matchKind } of allPatterns) {
       try {
-        const matches = root.findAll(pattern)
+        const isRule = typeof pattern !== 'string'
+        const matches = root.findAll(isRule ? pattern : pattern as string)
 
         for (const match of matches) {
-          const nameNode = match.getMatch('NAME')
-          const name = nameNode?.text() || 'anonymous'
+          const name = isRule
+            ? this.extractNameFromNode(match, pattern.nameChildKind)
+            : (match.getMatch('NAME')?.text() || 'anonymous')
           const range = match.range()
 
           // Create unique key for deduplication
@@ -149,7 +175,7 @@ export class SymbolSearchEngine {
           }
 
           // Check export status
-          const exported = this.checkExportStatus(match, name, content, filePath)
+          const exported = this.checkExportStatus(match, name, content, filePath, langName, exportBlockCache)
 
           // Apply exportedOnly filter
           if (options.exportedOnly && !exported) {
@@ -157,7 +183,7 @@ export class SymbolSearchEngine {
           }
 
           seenSymbols.add(symbolKey)
-          const signature = this.extractSignature(match.text(), options.kind)
+          const signature = this.extractSignature(match.text(), matchKind, langName)
 
           results.push({
             repository: repo.id,
@@ -165,7 +191,7 @@ export class SymbolSearchEngine {
             filePath,
             relativePath: getRelativePath(repo.path, filePath),
             name,
-            kind: options.kind,
+            kind: matchKind,
             startLine: range.start.line + 1,
             endLine: range.end.line + 1,
             signature,
@@ -179,6 +205,31 @@ export class SymbolSearchEngine {
     }
 
     return results
+  }
+
+  /**
+   * Extract the symbol name from an AST node using child kind traversal.
+   * Supports nested paths like 'const_element>name' for constants.
+   */
+  private extractNameFromNode(node: SgNode, nameChildKind?: string): string {
+    if (!nameChildKind) return 'anonymous'
+
+    const parts = nameChildKind.split('>')
+    let current: SgNode | null = node
+
+    for (const part of parts) {
+      if (!current) return 'anonymous'
+      let found: SgNode | null = null
+      for (const child of current.children()) {
+        if (child.kind() === part) {
+          found = child
+          break
+        }
+      }
+      current = found
+    }
+
+    return current?.text() || 'anonymous'
   }
 
   private matchesName(name: string, pattern: string): boolean {
@@ -245,7 +296,12 @@ export class SymbolSearchEngine {
   /**
    * Check if a symbol is exported using AST analysis and cached export block
    */
-  private checkExportStatus(match: SgNode, name: string, content: string, filePath: string): boolean {
+  private checkExportStatus(match: SgNode, name: string, content: string, filePath: string, langName: string, exportBlockCache: Map<string, { named: Set<string>, default: string | null }>): boolean {
+    // PHP export logic: namespace-level = exported, private/protected = not exported
+    if (langName === 'php') {
+      return this.checkPhpExportStatus(match)
+    }
+
     // 1. Check AST ancestry for export_statement
     // This handles: export function..., export class..., export const...
     try {
@@ -263,10 +319,10 @@ export class SymbolSearchEngine {
     }
 
     // 2. Use cached export block instead of per-symbol regex
-    let exports = this.exportBlockCache.get(filePath)
+    let exports = exportBlockCache.get(filePath)
     if (!exports) {
       exports = this.parseExportBlock(content)
-      this.exportBlockCache.set(filePath, exports)
+      exportBlockCache.set(filePath, exports)
     }
 
     if (exports.named.has(name))
@@ -290,7 +346,20 @@ export class SymbolSearchEngine {
     return false
   }
 
-  private extractSignature(text: string, kind: SymbolKind): string {
+  private checkPhpExportStatus(match: SgNode): boolean {
+    try {
+      const text = match.text()
+      if (/^\s*(private|protected)\s/.test(text)) {
+        return false
+      }
+    }
+    catch {
+      // Ignore AST errors
+    }
+    return true
+  }
+
+  private extractSignature(text: string, kind: SymbolKind, langName: string): string {
     const lines = text.split('\n')
     const firstLine = lines[0]
 
@@ -299,19 +368,26 @@ export class SymbolSearchEngine {
       case 'method': {
         // Get just the function declaration without body
         // Fixed regex to be linear (no backtracking issues)
-        const funcMatch = firstLine.match(/^[^(]*\([^)]*\)(?:\s*:[^{]+)?/)
+        const funcMatch = firstLine.match(/^[^(]*\([^)]*\)(?:\s*:[^{;]+)?/)
         return funcMatch ? funcMatch[0].trim() : firstLine.replace('{', '').trim()
       }
 
       case 'class':
       case 'interface': {
-        // Get class/interface declaration
+        if (langName === 'php') {
+          const phpMatch = firstLine.match(/^(?:abstract\s+)?(?:final\s+)?(?:readonly\s+)?(?:class|interface|trait|enum)\s+\w[^{]*/)
+          return phpMatch ? phpMatch[0].trim() : firstLine.replace('{', '').trim()
+        }
         const classMatch = firstLine.match(/^(?:export\s+)?(?:abstract\s+)?(?:class|interface)\s+\w[^{]*/)
         return classMatch ? classMatch[0].trim() : firstLine.replace('{', '').trim()
       }
 
+      case 'enum': {
+        const enumMatch = firstLine.match(/^(?:export\s+)?(?:const\s+)?enum\s+\w[^{]*/)
+        return enumMatch ? enumMatch[0].trim() : firstLine.replace('{', '').trim()
+      }
+
       case 'type':
-        // Get full type definition (first line or until semicolon)
         return firstLine.trim()
 
       default:
@@ -325,6 +401,7 @@ export class SymbolSearchEngine {
       javascript: ['.js', '.jsx', '.mjs', '.cjs'],
       ts: ['.ts', '.tsx'],
       js: ['.js', '.jsx', '.mjs', '.cjs'],
+      php: ['.php'],
     }
     return langMap[language.toLowerCase()] || getSupportedExtensions()
   }

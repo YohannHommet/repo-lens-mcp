@@ -34,7 +34,6 @@ function createMockRepo(overrides = {}) {
     id: 'repo-123',
     path: '/projects/app',
     alias: 'my-app',
-    tags: [],
     gitInfo: { branch: 'main', lastCommit: 'abc123', remote: 'origin' },
     registeredAt: new Date(),
   }, overrides)

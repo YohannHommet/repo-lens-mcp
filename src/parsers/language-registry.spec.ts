@@ -4,7 +4,6 @@ import {
   getLangFromFile,
   getLangNameFromFile,
   getSupportedExtensions,
-  isSupportedFile,
 } from './language-registry.js'
 
 describe('language Registry', () => {
@@ -31,6 +30,10 @@ describe('language Registry', () => {
 
     it('should return JavaScript for .cjs files', () => {
       expect(getLangFromFile('config.cjs')).toBe(Lang.JavaScript)
+    })
+
+    it('should return php lang string for .php files', () => {
+      expect(getLangFromFile('controller.php')).toBe('php')
     })
 
     it('should return null for unsupported extensions', () => {
@@ -79,34 +82,12 @@ describe('language Registry', () => {
       expect(getLangNameFromFile('config.cjs')).toBe('javascript')
     })
 
+    it('should return php for .php files', () => {
+      expect(getLangNameFromFile('controller.php')).toBe('php')
+    })
+
     it('should return null for unsupported extensions', () => {
       expect(getLangNameFromFile('script.py')).toBeNull()
-    })
-  })
-
-  describe('isSupportedFile', () => {
-    it('should return true for TypeScript files', () => {
-      expect(isSupportedFile('file.ts')).toBe(true)
-      expect(isSupportedFile('file.tsx')).toBe(true)
-    })
-
-    it('should return true for JavaScript files', () => {
-      expect(isSupportedFile('file.js')).toBe(true)
-      expect(isSupportedFile('file.jsx')).toBe(true)
-      expect(isSupportedFile('file.mjs')).toBe(true)
-      expect(isSupportedFile('file.cjs')).toBe(true)
-    })
-
-    it('should return false for unsupported files', () => {
-      expect(isSupportedFile('file.py')).toBe(false)
-      expect(isSupportedFile('file.go')).toBe(false)
-      expect(isSupportedFile('file.rs')).toBe(false)
-      expect(isSupportedFile('file.java')).toBe(false)
-    })
-
-    it('should return false for files without extension', () => {
-      expect(isSupportedFile('Makefile')).toBe(false)
-      expect(isSupportedFile('Dockerfile')).toBe(false)
     })
   })
 
@@ -120,11 +101,12 @@ describe('language Registry', () => {
       expect(extensions).toContain('.jsx')
       expect(extensions).toContain('.mjs')
       expect(extensions).toContain('.cjs')
+      expect(extensions).toContain('.php')
     })
 
-    it('should return exactly 6 extensions', () => {
+    it('should return exactly 7 extensions', () => {
       const extensions = getSupportedExtensions()
-      expect(extensions).toHaveLength(6)
+      expect(extensions).toHaveLength(7)
     })
 
     it('should not contain unsupported extensions', () => {

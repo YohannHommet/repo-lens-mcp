@@ -4,7 +4,7 @@ import type { SymbolSearchEngine } from '../search/symbol-search.js'
 import type { SymbolResult } from '../types/symbols.js'
 import { z } from 'zod'
 import { logger } from '../utils/logger.js'
-import { splitCommaSeparated } from '../utils/string-utils.js'
+import { formatToolResponse, handleToolError, READONLY_ANNOTATIONS, resolveRepositories } from './tool-utils.js'
 
 /**
  * Format symbol results in a token-efficient format
@@ -42,166 +42,170 @@ function formatSymbolResults(results: SymbolResult[], kind: string, pattern: str
   return lines.join('\n')
 }
 
+const languageEnum = z.enum(['typescript', 'javascript', 'ts', 'js', 'php'])
+
+
+const symbolOutputSchema = {
+  count: z.number().int().describe('Number of results returned'),
+  results: z.array(z.object({
+    repository: z.string(),
+    repositoryAlias: z.string().optional(),
+    filePath: z.string(),
+    relativePath: z.string(),
+    name: z.string(),
+    kind: z.string(),
+    startLine: z.number().int(),
+    endLine: z.number().int(),
+    signature: z.string().optional(),
+    exported: z.boolean(),
+  })).describe('Array of symbol results'),
+}
+
+function symbolInputSchema(nameDescription: string) {
+  return z.object({
+    name: z.string().min(1).optional().describe(nameDescription),
+    paths: z.string().optional().describe('Ad-hoc directory paths to search (comma-separated). No registration needed.'),
+    repoFilter: z.string().optional().describe('Filter registered repositories by alias (comma-separated)'),
+    language: languageEnum.optional().describe('Filter by language (typescript, javascript, php, ts, js)'),
+    exportedOnly: z.boolean().optional().describe('Only return exported symbols (default: false)'),
+    maxResults: z.number().int().min(1).max(500).optional().describe('Maximum results (default: 100, max: 500)'),
+    response_format: z.enum(['json', 'markdown']).optional().describe('Output format: "markdown" (default) or "json"'),
+  }).strict()
+}
+
 export function registerSymbolTools(
   server: McpServer,
   repoManager: RepositoryManager,
   symbolSearch: SymbolSearchEngine,
 ) {
-  server.tool(
-    'find_functions',
-    'Find function/method definitions across repositories using AST analysis',
+  server.registerTool(
+    'repolens_find_functions',
     {
-      name: z.string().optional().describe('Function name pattern (supports wildcards like \'handle*\')'),
-      repoFilter: z.string().optional().describe('Repository aliases or paths to search (comma-separated)'),
-      language: z.string().optional().describe('Filter by language (typescript, javascript)'),
-      exportedOnly: z.boolean().optional().describe('Only return exported functions (default: false)'),
-      maxResults: z.number().optional().describe('Maximum results (default: 100)'),
-    },
-    async ({ name, repoFilter, language, exportedOnly, maxResults }) => {
-      logger.debug('Tool find_functions called', { name, repoFilter, language })
-      try {
-        const repos = splitCommaSeparated(repoFilter)
-        const repositories = repoManager.resolveIdentifiers(repos)
+      title: 'Find Functions',
+      description: `Find function and method definitions across repositories using AST analysis.
 
-        if (repositories.length === 0) {
-          return {
-            content: [{ type: 'text', text: 'No repositories found. Register repositories first.' }],
-            isError: true,
-          }
-        }
+Searches for function declarations, arrow functions, and class methods in JS/TS and PHP. Uses ast-grep for accurate structural matching.
+
+Args:
+  - name (string, optional): Function name pattern. Supports wildcards: "handle*", "*Controller", "*user*"
+  - paths (string, optional): Ad-hoc directory paths to search (comma-separated). No registration needed.
+  - repoFilter (string, optional): Filter registered repositories by alias (comma-separated)
+  - language (string, optional): Filter by language: "typescript", "javascript", "php"
+  - exportedOnly (boolean, optional): Only return exported functions (default: false)
+  - maxResults (number, optional): Maximum results to return (default: 100)
+  - response_format (string, optional): Output format - "markdown" (default) or "json"
+
+Examples:
+  - Search a directory directly: paths="/home/user/projects/api"
+  - Find all handlers: name="handle*"
+  - Find exported functions in backend: repoFilter="backend", exportedOnly=true`,
+      inputSchema: symbolInputSchema('Function name pattern (supports wildcards like \'handle*\')'),
+      outputSchema: symbolOutputSchema,
+      annotations: READONLY_ANNOTATIONS,
+    },
+    async ({ name, paths, repoFilter, language, exportedOnly, maxResults, response_format }, _extra) => {
+      logger.debug('Tool find_functions called', { name, paths, repoFilter, language, response_format })
+      try {
+        const resolved = resolveRepositories(repoManager, repoFilter, paths)
+        if ('error' in resolved) return resolved.error
 
         const results = await symbolSearch.search(
-          {
-            kind: 'function',
-            name,
-            language,
-            exportedOnly: exportedOnly ?? false,
-            maxResults: maxResults ?? 100,
-          },
-          repositories,
+          { kind: 'function', name, language, exportedOnly: exportedOnly ?? false, maxResults: maxResults ?? 100 },
+          resolved.repositories,
         )
 
-        return {
-          content: [
-            {
-              type: 'text',
-              text: formatSymbolResults(results, 'function', name),
-            },
-          ],
-        }
+        return formatToolResponse(response_format, results, data => formatSymbolResults(data as SymbolResult[], 'function', name))
       }
       catch (error) {
-        return {
-          content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
-          isError: true,
-        }
+        return handleToolError(error, 'find_functions')
       }
     },
   )
 
-  server.tool(
-    'find_classes',
-    'Find class definitions across repositories using AST analysis',
+  server.registerTool(
+    'repolens_find_classes',
     {
-      name: z.string().optional().describe('Class name pattern'),
-      repoFilter: z.string().optional().describe('Repository aliases or paths to search (comma-separated)'),
-      language: z.string().optional().describe('Filter by language'),
-      exportedOnly: z.boolean().optional().describe('Only return exported classes'),
-      maxResults: z.number().optional().describe('Maximum results'),
-    },
-    async ({ name, repoFilter, language, exportedOnly, maxResults }) => {
-      logger.debug('Tool find_classes called', { name, repoFilter, language })
-      try {
-        const repos = splitCommaSeparated(repoFilter)
-        const repositories = repoManager.resolveIdentifiers(repos)
+      title: 'Find Classes',
+      description: `Find class definitions across repositories using AST analysis.
 
-        if (repositories.length === 0) {
-          return {
-            content: [{ type: 'text', text: 'No repositories found.' }],
-            isError: true,
-          }
-        }
+Searches for class declarations. Also finds PHP traits. Uses ast-grep for accurate structural matching.
+
+Args:
+  - name (string, optional): Class name pattern. Supports wildcards: "*Service", "*Controller", "Base*"
+  - paths (string, optional): Ad-hoc directory paths to search (comma-separated). No registration needed.
+  - repoFilter (string, optional): Filter registered repositories by alias (comma-separated)
+  - language (string, optional): Filter by language: "typescript", "javascript", "php"
+  - exportedOnly (boolean, optional): Only return exported classes (default: false)
+  - maxResults (number, optional): Maximum results to return (default: 100)
+  - response_format (string, optional): Output format - "markdown" (default) or "json"
+
+Examples:
+  - Search a directory directly: paths="/home/user/projects/api"
+  - Find all services: name="*Service"
+  - Find controllers in backend: repoFilter="backend", name="*Controller"`,
+      inputSchema: symbolInputSchema('Class name pattern'),
+      outputSchema: symbolOutputSchema,
+      annotations: READONLY_ANNOTATIONS,
+    },
+    async ({ name, paths, repoFilter, language, exportedOnly, maxResults, response_format }, _extra) => {
+      logger.debug('Tool find_classes called', { name, paths, repoFilter, language, response_format })
+      try {
+        const resolved = resolveRepositories(repoManager, repoFilter, paths)
+        if ('error' in resolved) return resolved.error
 
         const results = await symbolSearch.search(
-          {
-            kind: 'class',
-            name,
-            language,
-            exportedOnly: exportedOnly ?? false,
-            maxResults: maxResults ?? 100,
-          },
-          repositories,
+          { kind: 'class', name, language, exportedOnly: exportedOnly ?? false, maxResults: maxResults ?? 100 },
+          resolved.repositories,
         )
 
-        return {
-          content: [
-            {
-              type: 'text',
-              text: formatSymbolResults(results, 'class', name),
-            },
-          ],
-        }
+        return formatToolResponse(response_format, results, data => formatSymbolResults(data as SymbolResult[], 'class', name))
       }
       catch (error) {
-        return {
-          content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
-          isError: true,
-        }
+        return handleToolError(error, 'find_classes')
       }
     },
   )
 
-  server.tool(
-    'find_types',
-    'Find type/interface definitions across repositories using AST analysis',
+  server.registerTool(
+    'repolens_find_types',
     {
-      name: z.string().optional().describe('Type name pattern'),
-      repoFilter: z.string().optional().describe('Repository aliases or paths to search (comma-separated)'),
-      language: z.string().optional().describe('Filter by language'),
-      exportedOnly: z.boolean().optional().describe('Only return exported types'),
-      maxResults: z.number().optional().describe('Maximum results'),
+      title: 'Find Types',
+      description: `Find type aliases and interface definitions across repositories using AST analysis.
+
+Searches for both "type" and "interface" declarations. For PHP, finds interface declarations (PHP has no type aliases). Uses ast-grep for accurate structural matching.
+
+Args:
+  - name (string, optional): Type/interface name pattern. Supports wildcards: "*Props", "*Config", "I*"
+  - paths (string, optional): Ad-hoc directory paths to search (comma-separated). No registration needed.
+  - repoFilter (string, optional): Filter registered repositories by alias (comma-separated)
+  - language (string, optional): Filter by language: "typescript", "javascript", "php"
+  - exportedOnly (boolean, optional): Only return exported types (default: false)
+  - maxResults (number, optional): Maximum results to return (default: 100)
+  - response_format (string, optional): Output format - "markdown" (default) or "json"
+
+Examples:
+  - Search a directory directly: paths="/home/user/projects/api"
+  - Find all props types: name="*Props"
+  - Find interfaces with prefix: name="I*", exportedOnly=true`,
+      inputSchema: symbolInputSchema('Type name pattern'),
+      outputSchema: symbolOutputSchema,
+      annotations: READONLY_ANNOTATIONS,
     },
-    async ({ name, repoFilter, language, exportedOnly, maxResults }) => {
-      logger.debug('Tool find_types called', { name, repoFilter, language })
+    async ({ name, paths, repoFilter, language, exportedOnly, maxResults, response_format }, _extra) => {
+      logger.debug('Tool find_types called', { name, paths, repoFilter, language, response_format })
       try {
-        const repos = splitCommaSeparated(repoFilter)
-        const repositories = repoManager.resolveIdentifiers(repos)
+        const resolved = resolveRepositories(repoManager, repoFilter, paths)
+        if ('error' in resolved) return resolved.error
 
-        if (repositories.length === 0) {
-          return {
-            content: [{ type: 'text', text: 'No repositories found.' }],
-            isError: true,
-          }
-        }
+        const results = await symbolSearch.search(
+          { kinds: ['type', 'interface'], name, language, exportedOnly: exportedOnly ?? false, maxResults: maxResults ?? 100 },
+          resolved.repositories,
+        )
 
-        // Search both types and interfaces
-        const [typeResults, interfaceResults] = await Promise.all([
-          symbolSearch.search(
-            { kind: 'type', name, language, exportedOnly: exportedOnly ?? false, maxResults: maxResults ?? 50 },
-            repositories,
-          ),
-          symbolSearch.search(
-            { kind: 'interface', name, language, exportedOnly: exportedOnly ?? false, maxResults: maxResults ?? 50 },
-            repositories,
-          ),
-        ])
-
-        const results = [...typeResults, ...interfaceResults]
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: formatSymbolResults(results, 'type', name),
-            },
-          ],
-        }
+        return formatToolResponse(response_format, results, data => formatSymbolResults(data as SymbolResult[], 'type', name))
       }
       catch (error) {
-        return {
-          content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
-          isError: true,
-        }
+        return handleToolError(error, 'find_types')
       }
     },
   )

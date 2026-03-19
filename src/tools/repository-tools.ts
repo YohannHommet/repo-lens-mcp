@@ -2,129 +2,51 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { RepositoryManager } from '../core/repository-manager.js'
 import { z } from 'zod'
 import { logger } from '../utils/logger.js'
-import { splitCommaSeparated } from '../utils/string-utils.js'
+import { handleToolError, READONLY_ANNOTATIONS } from './tool-utils.js'
 
 export function registerRepositoryTools(
   server: McpServer,
   repoManager: RepositoryManager,
 ) {
-  server.tool(
-    'register_repository',
-    'Register a local git repository for cross-repository search',
+  server.registerTool(
+    'repolens_list_repositories',
     {
-      path: z.string().describe('Absolute path to the git repository'),
-      alias: z.string().optional().describe('User-friendly name for the repository'),
-      tags: z.string().optional().describe('Tags for filtering (comma-separated, e.g. "frontend,typescript")'),
-      force: z.boolean().optional().describe('Update if already registered (default: false)'),
+      title: 'List Repositories',
+      description: `List all configured repositories available for cross-repository search.
+
+Returns the list of repositories declared in repolens.yaml with their aliases, paths, and git branch info.
+
+Args:
+  - response_format (string, optional): Output format - "markdown" (default) or "json"`,
+      inputSchema: z.object({
+        response_format: z.enum(['json', 'markdown']).optional().describe('Output format: "markdown" (default) or "json"'),
+      }).strict(),
+      annotations: READONLY_ANNOTATIONS,
     },
-    async ({ path, alias, tags: tagsString, force }) => {
-      logger.debug('Tool register_repository called', { path, alias, tags: tagsString, force })
+    async ({ response_format }, _extra) => {
+      logger.debug('Tool list_repositories called', { response_format })
       try {
-        const tags = splitCommaSeparated(tagsString) || []
-        const repo = await repoManager.register(path, { alias, tags, force })
-        // Token-efficient response
-        const name = repo.alias || repo.id.slice(0, 8)
-        const tagsStr = repo.tags?.length ? ` [${repo.tags.join(',')}]` : ''
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `${repo.action === 'updated' ? 'Updated' : 'Registered'}: ${name} -> ${repo.path} (${repo.gitInfo.branch})${tagsStr}`,
-            },
-          ],
-        }
-      }
-      catch (error) {
-        return {
-          content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
-          isError: true,
-        }
-      }
-    },
-  )
-
-  server.tool(
-    'repositories',
-    'List, view, or remove registered repositories',
-    {
-      identifier: z.string().optional().describe('Get or remove a specific repo by ID, alias, or path'),
-      remove: z.boolean().optional().describe('Remove the identified repository (requires identifier)'),
-      tagFilter: z.string().optional().describe('Filter list by tags (comma-separated, e.g. "frontend,typescript")'),
-    },
-    async ({ identifier, remove, tagFilter }) => {
-      logger.debug('Tool repositories called', { identifier, remove, tagFilter })
-      try {
-        // Validate: remove requires identifier
-        if (remove && !identifier) {
-          return {
-            content: [{ type: 'text', text: 'Error: "remove" requires an "identifier" to specify which repository to remove' }],
-            isError: true,
-          }
-        }
-
-        // Remove a specific repository
-        if (identifier && remove) {
-          await repoManager.unregister(identifier)
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({ success: true, removed: identifier }),
-              },
-            ],
-          }
-        }
-
-        // Get details of a specific repository
-        if (identifier) {
-          const repo = repoManager.get(identifier)
-          if (!repo) {
-            return {
-              content: [{ type: 'text', text: 'Repository not found' }],
-              isError: true,
-            }
-          }
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(repo, null, 2),
-              },
-            ],
-          }
-        }
-
-        // List all repositories (optionally filtered by tags)
-        const tags = splitCommaSeparated(tagFilter)
-        const repos = repoManager.list({ tags })
+        const repos = repoManager.list()
         if (repos.length === 0) {
           return {
-            content: [{ type: 'text', text: 'No repositories registered.' }],
+            content: [{ type: 'text' as const, text: response_format === 'json' ? '[]' : 'No repositories configured. Add repos to repolens.yaml, or pass paths directly to search tools.' }],
           }
         }
 
-        // Token-efficient format
-        const lines: string[] = [`${repos.length} repositories:`]
-        for (const r of repos) {
-          const name = r.alias || r.id.slice(0, 8)
-          const tagsStr = r.tags?.length ? ` [${r.tags.join(',')}]` : ''
-          lines.push(`  ${name}: ${r.path} (${r.gitInfo.branch})${tagsStr}`)
+        if (response_format === 'json') {
+          return { content: [{ type: 'text' as const, text: JSON.stringify(repos, null, 2) }] }
         }
 
-        return {
-          content: [
-            {
-              type: 'text',
-              text: lines.join('\n'),
-            },
-          ],
+        const lines: string[] = [`${repos.length} repositories:`]
+        for (const r of repos) {
+          const name = r.alias || r.path.split('/').pop()
+          lines.push(`  ${name}: ${r.path} (${r.gitInfo.branch})`)
         }
+
+        return { content: [{ type: 'text' as const, text: lines.join('\n') }] }
       }
       catch (error) {
-        return {
-          content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
-          isError: true,
-        }
+        return handleToolError(error, 'list_repositories')
       }
     },
   )

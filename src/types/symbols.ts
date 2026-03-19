@@ -9,7 +9,8 @@ export type SymbolKind
     | 'constant'
 
 export interface SymbolSearchOptions {
-  kind: SymbolKind
+  kind?: SymbolKind
+  kinds?: SymbolKind[]
   name?: string
   repositoryIds?: string[]
   language?: string

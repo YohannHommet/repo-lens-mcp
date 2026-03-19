@@ -10,7 +10,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![MCP Ready](https://img.shields.io/badge/MCP-Ready-green?style=for-the-badge&logo=modelcontextprotocol&logoColor=white)](https://modelcontextprotocol.io)
 
-*Search functions, classes, and API routes across all your local repositories without switching context.*
+*Search functions, classes, and API routes across all your local JS/TS and PHP repositories without switching context.*
 
 </div>
 
@@ -20,11 +20,12 @@
 
 **The problem:** You're working in your frontend repo and need to find a backend API endpoint. Or you're debugging and need to find where a function is defined across your monorepo. With Claude Code, you can search the current repository, but what about your other local projects?
 
-**The solution:** Repo Lens lets you register multiple local repositories and search across all of them simultaneously using AST-based structural search. Find the exact function signature, class definition, or API route you need without leaving your current context.
+**The solution:** Repo Lens lets you declare your repositories once in a YAML config file — or search any directory ad-hoc — and search across all of them simultaneously using AST-based structural search. Find the exact function signature, class definition, or API route you need without leaving your current context.
 
 ### Use Cases
 
 - **Frontend + Backend development:** Search backend API routes while working in your frontend repo
+- **PHP + JS/TS projects:** Find PHP classes, traits, and interfaces alongside TypeScript types
 - **Microservices architecture:** Find function definitions across multiple services
 - **Monorepo navigation:** Search across packages without switching directories
 - **Code exploration:** Understand how different projects in your ecosystem connect
@@ -49,30 +50,25 @@ Unlike grep-style text search, Repo Lens uses **[ast-grep](https://ast-grep.gith
 - **Export awareness:** Find only exported functions, or include private ones
 - **Signature extraction:** Get full function signatures, not just names
 
+### Zero-Friction Search
+
+Search any directory instantly with the `paths` parameter — no configuration required:
+
+- Pass directory paths directly to any search tool
+- Declare persistent repos in `repolens.yaml` with aliases for repeated use
+- Mix both: registered repos + ad-hoc paths in the same query
+
 ### Multi-Repository Search
 
-Register any number of local git repositories and search them all at once:
+Declare your repositories once and search them all at once:
 
-- Instant registration (< 1 second per repo)
-- Filter by repository, tags, or search all
+- Static YAML config — declare once, search always
+- Filter by repository alias or search all
 - Results include repository context
 
 ### API Route Discovery
 
 Map all API endpoints across Express, NestJS, Fastify, and Laravel projects. Find that `/users/:id` endpoint in seconds.
-
----
-
-## Roadmap
-
-- **Phase 1 (Current):** Stability, Multi-repo, Basic AST
-- **Phase 2 (Q1 2026):** Cross-file references, Smart Context Summaries
-- **Phase 2.5 (Q1 2026):** Python support (symbol search + Flask/Django routes)
-- **Phase 3 (Q2 2026):** Semantic Search (Local Embeddings)
-- **Phase 3.5 (Q2 2026):** Go & Rust support
-- **Phase 4.5 (Q3 2026):** Java & C# support
-
-[Check the full ROADMAP.md](ROADMAP.md) | [Language Expansion Plan](docs/LANGUAGE_EXPANSION.md)
 
 ---
 
@@ -87,7 +83,7 @@ Add this to your `claude_desktop_config.json` (or VS Code MCP settings):
   "mcpServers": {
     "repo-lens": {
       "command": "npx",
-      "args": ["-y", "repo-lens-mcp"]
+      "args": ["-y", "repo-lens-mcp", "--config", "/home/user/repolens.yaml"]
     }
   }
 }
@@ -100,92 +96,41 @@ Restart Claude, and you're ready to go.
 ```bash
 git clone https://github.com/YohannHommet/repo-lens-mcp.git
 cd repo-lens-mcp
-npm install
-npm run build
-npm run dev
-```
-
----
-
-## Capabilities
-
-### Repository Management (2 tools)
-
-Manage which repositories are available for cross-repo search:
-
-| Tool | Description |
-|:---|:---|
-| `register_repository` | Add or update a git repository (`force: true` to update existing) |
-| `repositories` | List, view, or remove repositories |
-
-**`repositories` usage patterns:**
-- `repositories()` → List all repos
-- `repositories({ identifier: 'my-api' })` → Get details of one repo
-- `repositories({ identifier: 'my-api', remove: true })` → Remove that repo
-- `repositories({ tags: ['frontend'] })` → List repos filtered by tags
-
-### Symbol Search (3 tools)
-
-AST-based structural search powered by ast-grep:
-
-| Tool | Description |
-|:---|:---|
-| `find_functions` | Find function/method definitions (supports wildcards like `handle*`) |
-| `find_classes` | Find class definitions |
-| `find_types` | Find TypeScript interfaces and type aliases |
-
-### API Route Discovery (1 tool)
-
-| Tool | Description |
-|:---|:---|
-| `find_api_routes` | Map API endpoints across Express, NestJS, Fastify, Laravel |
-
----
-
-## Usage Examples
-
-### 1. Register Your Projects
-
-> "Register the backend at /path/to/backend-api"
-
-```
-register_repository(path: "/path/to/backend-api", alias: "backend")
-```
-
-### 2. Find an API Endpoint
-
-> "Find the Express route that handles POST requests to /login"
-
-```
-find_api_routes(framework: "express", method: "POST", pathPattern: "/login")
-```
-
-### 3. Search Functions Across Repos
-
-> "Find all functions starting with 'handle' across all my registered repos"
-
-```
-find_functions(name: "handle*")
-```
-
-### 4. Find a Specific Class
-
-> "Where is the UserService class defined?"
-
-```
-find_classes(name: "UserService")
+pnpm install
+pnpm build
+pnpm dev
 ```
 
 ---
 
 ## Configuration
 
-Minimal configuration via environment variables:
+### Config File (`repolens.yaml`)
+
+Create a YAML config file declaring your repositories:
+
+```yaml
+# repolens.yaml
+repositories:
+  - path: ~/projects/backend-api
+    alias: backend
+  - path: ~/projects/frontend-app
+    alias: frontend
+  - path: ~/projects/shared-lib
+```
+
+`~` is expanded to your home directory automatically.
+
+### Config Path Resolution
+
+1. **`--config <path>`** CLI argument (explicit — fails if file not found)
+2. **Default:** `~/.config/repo-lens-mcp/repolens.yaml` (graceful — returns empty if not found, ad-hoc paths still work)
+
+### Environment Variables
 
 | Variable | Default | Description |
 |:---|:---|:---|
 | `MCP_LOG_LEVEL` | `info` | Log level: `debug`, `info`, `warn`, `error` |
-| `MCP_REPO_SEARCH_CONFIG_DIR` | `~/.config/mcp-repo-search` | Config directory for repository data |
 
 Example:
 ```json
@@ -194,6 +139,72 @@ Example:
     "MCP_LOG_LEVEL": "debug"
   }
 }
+```
+
+---
+
+## Capabilities
+
+### Repository Listing (1 tool)
+
+| Tool | Description |
+|:---|:---|
+| `repolens_list_repositories` | List all configured repositories (read-only) |
+
+### Symbol Search (3 tools)
+
+AST-based structural search powered by ast-grep. Supports **JavaScript/TypeScript** and **PHP** (classes, traits, interfaces, enums, functions, methods, constants):
+
+| Tool | Description |
+|:---|:---|
+| `repolens_find_functions` | Find function/method definitions in JS/TS and PHP (supports wildcards like `handle*`) |
+| `repolens_find_classes` | Find class definitions (also finds PHP traits) |
+| `repolens_find_types` | Find interfaces and type aliases (PHP: interfaces only) |
+
+All search tools accept:
+- `paths` — Ad-hoc directory paths to search (comma-separated, no registration needed)
+- `repoFilter` — Filter registered repositories by alias
+
+### API Route Discovery (1 tool)
+
+| Tool | Description |
+|:---|:---|
+| `repolens_find_api_routes` | Map API endpoints across Express, NestJS, Fastify, Laravel |
+
+---
+
+## Usage Examples
+
+### 1. Search Any Directory (No Configuration)
+
+> "Find all functions starting with 'handle' in my backend"
+
+```
+repolens_find_functions(paths: "/home/user/projects/backend", name: "handle*")
+```
+
+### 2. List Configured Repos
+
+> "What repos are available?"
+
+```
+repolens_list_repositories()
+```
+
+### 3. Find an API Endpoint
+
+> "Find the Express route that handles POST requests to /login"
+
+```
+repolens_find_api_routes(repoFilter: "backend", method: "POST", pathPattern: "/login")
+```
+
+### 4. Find a Specific Class
+
+> "Where is the UserService class defined?"
+
+```
+repolens_find_classes(name: "UserService")
 ```
 
 ---

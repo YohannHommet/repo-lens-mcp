@@ -2,6 +2,8 @@
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "rules": {
     "correctness": "error",
-    "suspicious": "error"
+    "suspicious": "error",
+    "complexity": "warn",
+    "style": "warn"
   }
 }
