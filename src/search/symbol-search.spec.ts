@@ -41,7 +41,6 @@ function createMockRepo(overrides = {}) {
     id: 'repo-123',
     path: '/projects/app',
     alias: 'my-app',
-    tags: [],
     gitInfo: { branch: 'main', lastCommit: 'abc123', remote: 'origin' },
     registeredAt: new Date(),
     ...overrides,
@@ -68,6 +67,14 @@ function createMockAst(symbols: Array<{
     parent: () => sym.isExported
       ? { kind: () => 'export_statement', parent: () => null }
       : { kind: () => 'program', parent: () => null },
+    // Support child-based name extraction for rule-based patterns (PHP)
+    children: () => [
+      { kind: () => 'name', text: () => sym.name, children: () => [] },
+      // For const_declaration, also provide const_element child
+      { kind: () => 'const_element', text: () => `${sym.name} = ...`, children: () => [
+        { kind: () => 'name', text: () => sym.name, children: () => [] },
+      ] },
+    ],
   }))
 
   return {

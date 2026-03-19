@@ -167,6 +167,8 @@ export class APIRouteSearchEngine {
 
   /**
    * Find Laravel (PHP) routes: Route::get('/path', ...)
+   * Uses kind-based AST matching because PHP tree-sitter grammar
+   * doesn't support ast-grep pattern strings.
    */
   private findLaravelRoutes(
     root: SgNode,
@@ -176,95 +178,73 @@ export class APIRouteSearchEngine {
   ): APIRoute[] {
     const routes: APIRoute[] = []
 
-    // Laravel Facade patterns
-    const patterns = [
-      'Route::get($PATH, $$$)',
-      'Route::post($PATH, $$$)',
-      'Route::put($PATH, $$$)',
-      'Route::delete($PATH, $$$)',
-      'Route::patch($PATH, $$$)',
-      'Route::any($PATH, $$$)',
-      'Route::match($METHODS, $PATH, $$$)',
-    ]
+    // Match all Route::method() calls using kind-based rules
+    const ROUTE_METHODS = new Set(['get', 'post', 'put', 'delete', 'patch', 'any', 'match', 'resource', 'apiResource'])
 
-    for (const pattern of patterns) {
-      const matches = root.findAll(pattern)
+    const matches = root.findAll({
+      rule: {
+        kind: 'scoped_call_expression',
+        has: {
+          kind: 'name',
+          regex: '^(get|post|put|delete|patch|any|match|resource|apiResource)$',
+        },
+      },
+    })
 
-      for (const match of matches) {
-        try {
-          const text = match.text()
-          let method = 'GET'
-          let path = '/'
+    for (const match of matches) {
+      try {
+        const text = match.text()
 
-          // Extract Method
-          const methodMatch = text.match(/Route::(\w+)/)
-          if (methodMatch) {
-            method = methodMatch[1].toUpperCase()
-          }
-
-          // Extract Path
-          // $PATH captures the first argument
-          const args = match.getMatch('PATH')
-          if (args) {
-            const pathText = args.text()
-            // Strip quotes ('/', "/foo")
-            path = pathText.replace(/^['"]|['"]$/g, '')
-          }
-
-          // Apply filters
-          if (options.method && method !== 'ANY' && method !== 'MATCH' && method !== options.method.toUpperCase()) {
-            continue
-          }
-          if (options.pathPattern && !path.includes(options.pathPattern)) {
-            continue
-          }
-          if (options.framework && options.framework !== 'laravel') {
-            continue
-          }
-
-          // Extract Handler
-          // Often formatted as [Controller::class, 'method'] or 'Controller@method' or function() {}
-          let handler = 'closure'
-          const fullText = match.text()
-
-          if (fullText.includes('::class')) {
-            const controllerMatch = fullText.match(/\[([\w\\]+)::class,\s*['"](\w+)['"]/)
-            if (controllerMatch) {
-              handler = `${controllerMatch[1]}@${controllerMatch[2]}`
-            }
-            else {
-              // Try simpler capture
-              const classMatch = fullText.match(/([\w\\]+)::class/)
-              if (classMatch)
-                handler = classMatch[1]
-            }
-          }
-          else if (fullText.includes('@')) {
-            // String style 'Controller@method'
-            const strMatch = fullText.match(/['"]([\w\\]+@\w+)['"]/)
-            if (strMatch)
-              handler = strMatch[1]
-          }
-
-          const range = match.range()
-          const lineNumber = range.start.line + 1
-
-          routes.push({
-            repository: repo.id,
-            repositoryAlias: repo.alias,
-            method,
-            path,
-            handler,
-            filePath,
-            relativePath: getRelativePath(repo.path, filePath),
-            lineNumber,
-            framework: 'laravel',
-            parameters: this.extractPathParameters(path),
-          })
+        // Verify this is a Route:: call (not some other scoped call)
+        if (!text.startsWith('Route::')) {
+          continue
         }
-        catch (error) {
-          logger.debug('Error processing Laravel route match', { error })
+
+        // Extract method from Route::method(...)
+        const methodMatch = text.match(/Route::(\w+)/)
+        if (!methodMatch || !ROUTE_METHODS.has(methodMatch[1])) {
+          continue
         }
+        const method = methodMatch[1].toUpperCase()
+
+        // Extract path from first string argument
+        let path = '/'
+        const pathMatch = text.match(/Route::\w+\(\s*['"]([^'"]+)['"]/)
+        if (pathMatch) {
+          path = pathMatch[1]
+        }
+
+        // Apply filters
+        if (options.method && method !== 'ANY' && method !== 'MATCH' && method !== options.method.toUpperCase()) {
+          continue
+        }
+        if (options.pathPattern && !path.includes(options.pathPattern)) {
+          continue
+        }
+        if (options.framework && options.framework !== 'laravel') {
+          continue
+        }
+
+        const handler = this.extractLaravelHandler(text)
+
+        const range = match.range()
+        const lineNumber = range.start.line + 1
+
+        routes.push({
+          repository: repo.id,
+          repositoryAlias: repo.alias,
+          method,
+          path,
+          handler,
+          filePath,
+          relativePath: getRelativePath(repo.path, filePath),
+          lineNumber,
+          framework: 'laravel',
+          parameters: this.extractPathParameters(path),
+        })
+      }
+      catch (error) {
+        logger.debug('Error processing Laravel route match', { error })
       }
     }
 
@@ -483,6 +463,24 @@ export class APIRouteSearchEngine {
     }
 
     return routes
+  }
+
+  private extractLaravelHandler(text: string): string {
+    if (text.includes('::class')) {
+      const controllerMatch = text.match(/\[([\w\\]+)::class,\s*['"](\w+)['"]/)
+      if (controllerMatch) return `${controllerMatch[1]}@${controllerMatch[2]}`
+      const classMatch = text.match(/([\w\\]+)::class/)
+      if (classMatch) return classMatch[1]
+    }
+    if (text.includes('@')) {
+      const strMatch = text.match(/['"]([\w\\]+@\w+)['"]/)
+      if (strMatch) return strMatch[1]
+    }
+    if (text.includes("'uses'") || text.includes('"uses"')) {
+      const usesMatch = text.match(/['"]uses['"]\s*=>\s*['"]([\w\\@]+)['"]/)
+      if (usesMatch) return usesMatch[1]
+    }
+    return 'closure'
   }
 
   private extractMethod(text: string): string {

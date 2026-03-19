@@ -47,39 +47,29 @@ export function registerApiTools(
       title: 'Find API Routes',
       description: `Find API route/endpoint definitions in backend code across repositories.
 
-Searches for HTTP route definitions in Express, Fastify, NestJS, and Laravel codebases. Perfect for frontend developers needing to discover backend endpoints, or for understanding API surface area across microservices.
+Searches for HTTP route definitions in Express, Fastify, NestJS, and Laravel codebases.
 
-Supported Frameworks:
-  - Express: app.get(), router.post(), etc.
-  - Fastify: fastify.get(), fastify.route()
-  - NestJS: @Get(), @Post(), @Controller() decorators
-  - Laravel: Route::get(), Route::post() facades (PHP)
+Supported Frameworks: Express, Fastify, NestJS, Laravel (PHP)
 
 Args:
   - method (string, optional): Filter by HTTP method: "GET", "POST", "PUT", "DELETE", "PATCH"
   - pathPattern (string, optional): Filter routes containing this path segment (e.g., "/users", "/api/v1")
-  - repoFilter (string, optional): Comma-separated repository aliases or paths to limit search scope
+  - paths (string, optional): Ad-hoc directory paths to search (comma-separated). No registration needed.
+  - repoFilter (string, optional): Filter registered repositories by alias (comma-separated)
   - framework (string, optional): Filter by framework: "express", "fastify", "nestjs", "laravel"
   - maxResults (number, optional): Maximum results to return (default: 100)
   - response_format (string, optional): Output format - "markdown" (default) or "json"
 
-Returns:
-  Markdown: Text grouped by repository with method, path, framework, and location
-  JSON: Array of APIRoute objects with full metadata
-
 Examples:
+  - Search a directory directly: paths="/home/user/projects/api"
   - Find all user endpoints: pathPattern="/users"
   - Find POST routes in backend: repoFilter="backend-api", method="POST"
-  - Find NestJS controllers: framework="nestjs"
-  - Find all routes across microservices: {} (empty params)
-
-Error Handling:
-  - "No repositories found" if no repos registered or repoFilter matches nothing
-  - "No API routes found" if search returns empty`,
+  - Find NestJS controllers: framework="nestjs"`,
       inputSchema: z.object({
         method: z.enum(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'ALL']).optional().describe('HTTP method (GET, POST, PUT, DELETE, PATCH)'),
         pathPattern: z.string().optional().describe('Filter by path pattern (e.g., "/users", "/api")'),
-        repoFilter: z.string().optional().describe('Repository aliases or paths to search (comma-separated)'),
+        paths: z.string().optional().describe('Ad-hoc directory paths to search (comma-separated). No registration needed.'),
+        repoFilter: z.string().optional().describe('Filter registered repositories by alias (comma-separated)'),
         framework: z.enum(['express', 'fastify', 'nestjs', 'laravel']).optional().describe('Filter by framework (express, fastify, nestjs, laravel)'),
         maxResults: z.number().int().min(1).max(500).optional().describe('Maximum results (default: 100, max: 500)'),
         response_format: z.enum(['json', 'markdown']).optional().describe('Output format: "markdown" (default) or "json"'),
@@ -105,10 +95,10 @@ Error Handling:
         openWorldHint: false,
       },
     },
-    async ({ method, pathPattern, repoFilter, framework, maxResults, response_format }) => {
-      logger.debug('Tool find_api_routes called', { method, pathPattern, repoFilter, framework, response_format })
+    async ({ method, pathPattern, paths, repoFilter, framework, maxResults, response_format }) => {
+      logger.debug('Tool find_api_routes called', { method, pathPattern, paths, repoFilter, framework, response_format })
       try {
-        const resolved = resolveRepositories(repoManager, repoFilter)
+        const resolved = resolveRepositories(repoManager, repoFilter, paths)
         if ('error' in resolved) return resolved.error
 
         const results = await apiRouteSearch.search(

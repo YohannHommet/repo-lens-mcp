@@ -8,6 +8,7 @@ import fg from 'fast-glob'
 import pLimit from 'p-limit'
 import { SYMBOL_SEARCH_IGNORE_PATTERNS } from '../constants.js'
 import { getLangFromFile, getLangNameFromFile, getSupportedExtensions } from '../parsers/language-registry.js'
+import type { SearchPattern } from '../parsers/patterns/index.js'
 import { LANGUAGE_PATTERNS } from '../parsers/patterns/index.js'
 import { logger } from '../utils/logger.js'
 import { getRelativePath } from '../utils/path-utils.js'
@@ -123,7 +124,7 @@ export class SymbolSearchEngine {
       return results
 
     // Collect patterns tagged by kind
-    const allPatterns: Array<{ pattern: string, kind: SymbolKind }> = []
+    const allPatterns: Array<{ pattern: SearchPattern, kind: SymbolKind }> = []
     for (const kind of kindsToSearch) {
       const kindPatterns = languagePatterns.patterns[kind] || []
       for (const pattern of kindPatterns) {
@@ -156,11 +157,13 @@ export class SymbolSearchEngine {
 
     for (const { pattern, kind: matchKind } of allPatterns) {
       try {
-        const matches = root.findAll(pattern)
+        const isRule = typeof pattern !== 'string'
+        const matches = root.findAll(isRule ? pattern : pattern as string)
 
         for (const match of matches) {
-          const nameNode = match.getMatch('NAME')
-          const name = nameNode?.text() || 'anonymous'
+          const name = isRule
+            ? this.extractNameFromNode(match, pattern.nameChildKind)
+            : (match.getMatch('NAME')?.text() || 'anonymous')
           const range = match.range()
 
           // Create unique key for deduplication
@@ -205,6 +208,31 @@ export class SymbolSearchEngine {
     }
 
     return results
+  }
+
+  /**
+   * Extract the symbol name from an AST node using child kind traversal.
+   * Supports nested paths like 'const_element>name' for constants.
+   */
+  private extractNameFromNode(node: SgNode, nameChildKind?: string): string {
+    if (!nameChildKind) return 'anonymous'
+
+    const parts = nameChildKind.split('>')
+    let current: SgNode | null = node
+
+    for (const part of parts) {
+      if (!current) return 'anonymous'
+      let found: SgNode | null = null
+      for (const child of current.children()) {
+        if (child.kind() === part) {
+          found = child
+          break
+        }
+      }
+      current = found
+    }
+
+    return current?.text() || 'anonymous'
   }
 
   private matchesName(name: string, pattern: string): boolean {
