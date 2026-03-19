@@ -6,19 +6,17 @@ import { readFile } from 'node:fs/promises'
 import { parse } from '@ast-grep/napi'
 import fg from 'fast-glob'
 import pLimit from 'p-limit'
-import { SYMBOL_SEARCH_IGNORE_PATTERNS } from '../constants.js'
+import { FILE_CONCURRENCY, SYMBOL_SEARCH_IGNORE_PATTERNS } from '../constants.js'
 import { getLangFromFile, getLangNameFromFile, getSupportedExtensions } from '../parsers/language-registry.js'
 import type { SearchPattern } from '../parsers/patterns/index.js'
 import { LANGUAGE_PATTERNS } from '../parsers/patterns/index.js'
 import { logger } from '../utils/logger.js'
 import { getRelativePath } from '../utils/path-utils.js'
 
-const FILE_CONCURRENCY = 8
 const MAX_PATTERN_CACHE_SIZE = 100
 
 export class SymbolSearchEngine {
   private patternRegexCache = new Map<string, RegExp>()
-  private exportBlockCache = new Map<string, { named: Set<string>, default: string | null }>()
 
   async search(
     options: SymbolSearchOptions,
@@ -48,6 +46,7 @@ export class SymbolSearchEngine {
     maxResults: number,
   ): Promise<SymbolResult[]> {
     const results: SymbolResult[] = []
+    const exportBlockCache = new Map<string, { named: Set<string>, default: string | null }>()
     const extensions = options.language
       ? this.getExtensionsForLanguage(options.language)
       : getSupportedExtensions()
@@ -69,7 +68,7 @@ export class SymbolSearchEngine {
       files.map(filePath =>
         limit(() => {
           if (resultCount >= maxResults) return Promise.resolve([])
-          return this.searchInFile(repo, filePath, options).then((results) => {
+          return this.searchInFile(repo, filePath, options, exportBlockCache).then((results) => {
             resultCount += results.length
             return results
           }).catch((error) => {
@@ -86,9 +85,6 @@ export class SymbolSearchEngine {
         break
     }
 
-    // Clear file-level caches after repo search
-    this.exportBlockCache.clear()
-
     return results
   }
 
@@ -96,6 +92,7 @@ export class SymbolSearchEngine {
     repo: Repository,
     filePath: string,
     options: SymbolSearchOptions,
+    exportBlockCache: Map<string, { named: Set<string>, default: string | null }>,
   ): Promise<SymbolResult[]> {
     const results: SymbolResult[] = []
     const lang = getLangFromFile(filePath)
@@ -178,7 +175,7 @@ export class SymbolSearchEngine {
           }
 
           // Check export status
-          const exported = this.checkExportStatus(match, name, content, filePath, langName)
+          const exported = this.checkExportStatus(match, name, content, filePath, langName, exportBlockCache)
 
           // Apply exportedOnly filter
           if (options.exportedOnly && !exported) {
@@ -299,7 +296,7 @@ export class SymbolSearchEngine {
   /**
    * Check if a symbol is exported using AST analysis and cached export block
    */
-  private checkExportStatus(match: SgNode, name: string, content: string, filePath: string, langName: string): boolean {
+  private checkExportStatus(match: SgNode, name: string, content: string, filePath: string, langName: string, exportBlockCache: Map<string, { named: Set<string>, default: string | null }>): boolean {
     // PHP export logic: namespace-level = exported, private/protected = not exported
     if (langName === 'php') {
       return this.checkPhpExportStatus(match)
@@ -322,10 +319,10 @@ export class SymbolSearchEngine {
     }
 
     // 2. Use cached export block instead of per-symbol regex
-    let exports = this.exportBlockCache.get(filePath)
+    let exports = exportBlockCache.get(filePath)
     if (!exports) {
       exports = this.parseExportBlock(content)
-      this.exportBlockCache.set(filePath, exports)
+      exportBlockCache.set(filePath, exports)
     }
 
     if (exports.named.has(name))

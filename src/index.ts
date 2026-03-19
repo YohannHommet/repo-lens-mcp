@@ -18,7 +18,8 @@ import {
 import { logger } from './utils/logger.js'
 
 // Register PHP as a dynamic language for ast-grep
-registerDynamicLanguage({ php: phpLang })
+// phpLang uses a lazy getter for libraryPath — runtime-compatible but types diverge
+registerDynamicLanguage({ php: phpLang } as any)
 
 // Load configuration
 const config = loadConfig()

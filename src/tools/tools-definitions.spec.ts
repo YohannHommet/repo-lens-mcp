@@ -25,7 +25,7 @@ describe('tool definitions', () => {
 
     registerRepositoryTools(toolServer, mockRepoManager as any)
 
-    expect(toolServer.registerTool).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(toolServer.registerTool)).toHaveBeenCalledTimes(1)
     const toolNames = (toolServer.registerTool as any).mock.calls.map((c: any) => c[0])
     expect(toolNames).toContain('repolens_list_repositories')
   })

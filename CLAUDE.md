@@ -23,7 +23,7 @@ repo-lens-mcp is an MCP (Model Context Protocol) server that provides AST-based 
 | `pnpm benchmark` | Single-repo benchmark |
 | `pnpm benchmark:multi` | Multi-repo benchmark |
 
-> **Note:** `pnpm typecheck` may fail due to a pre-existing config issue with `oxlint --type-check` flags. Run `pnpm test` and `pnpm lint` independently to verify changes.
+> **Note:** `pnpm typecheck` uses `oxlint --type-aware --type-check` for type-aware linting with TypeScript compiler diagnostics.
 
 ## Architecture
 
@@ -92,6 +92,7 @@ Config path resolution: `--config` CLI arg > default `~/.config/repo-lens-mcp/re
 - Framework: **Vitest** with globals enabled (`vitest.config.ts`)
 - Pattern: mock dependencies → capture tool handlers via `server.registerTool` mock → call handlers directly → assert responses
 - Test files: colocated as `*.spec.ts` in `src/tools/` and `src/core/`
+- **Constructor-injected deps** (e.g. `ConfigLoader` into `RepositoryManager`): pass mock objects directly (`{ load: mockFn } as any`), don't use `vi.mock()` for the module — the real class is never instantiated internally
 
 ## Environment Variables
 
@@ -101,8 +102,16 @@ Config path resolution: `--config` CLI arg > default `~/.config/repo-lens-mcp/re
 
 - `--config <path>`: Path to `repolens.yaml` config file (default: `~/.config/repo-lens-mcp/repolens.yaml`)
 
+## CI/CD
+
+- GitHub Actions workflow: `.github/workflows/publish.yml`
+- Uses **pnpm** (not npm) — `packageManager` field in `package.json` drives `pnpm/action-setup@v4`
+- Publish triggers on GitHub release event → npm publish with provenance
+- `npm publish` (not `pnpm publish`) is used for the actual npm registry push
+
 ## Gotchas
 
+- **WSL2 pnpm chmod errors** — `pnpm install` may fail with `EPERM: operation not permitted, chmod` on bin files. If `node_modules` files are owned by another user (e.g. `www-data` from Docker), fix with `sudo chown -R $(whoami) node_modules`. If vitest binary is missing after install, run directly: `node node_modules/vitest/vitest.mjs --run`
 - **`existsSync` in ConfigLoader `load()` is acceptable** — it's used to decide behavior (fail hard vs. return empty) based on whether the config was explicitly requested via `--config`
 - **stdout is reserved for MCP JSON** — all logging must go to stderr. The logger already does this via `console.error`, but never use `console.log` directly
 - **PHP is a dynamic language** — `registerDynamicLanguage({ php: phpLang })` must run before any ast-grep parsing; it's called once at startup in `src/index.ts`

@@ -4,7 +4,7 @@ import type { APIRouteSearchEngine } from '../search/api-route-search.js'
 import type { APIRoute } from '../types/symbols.js'
 import { z } from 'zod'
 import { logger } from '../utils/logger.js'
-import { formatToolResponse, handleToolError, resolveRepositories } from './tool-utils.js'
+import { formatToolResponse, handleToolError, READONLY_ANNOTATIONS, resolveRepositories } from './tool-utils.js'
 
 /**
  * Format API route results in a token-efficient format
@@ -88,14 +88,9 @@ Examples:
           framework: z.string().optional(),
         })).describe('Array of API route results'),
       },
-      annotations: {
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
+      annotations: READONLY_ANNOTATIONS,
     },
-    async ({ method, pathPattern, paths, repoFilter, framework, maxResults, response_format }) => {
+    async ({ method, pathPattern, paths, repoFilter, framework, maxResults, response_format }, _extra) => {
       logger.debug('Tool find_api_routes called', { method, pathPattern, paths, repoFilter, framework, response_format })
       try {
         const resolved = resolveRepositories(repoManager, repoFilter, paths)
@@ -106,7 +101,7 @@ Examples:
           resolved.repositories,
         )
 
-        return formatToolResponse(response_format, results, () => formatApiRoutes(results))
+        return formatToolResponse(response_format, results, data => formatApiRoutes(data as APIRoute[]))
       }
       catch (error) {
         return handleToolError(error, 'find_api_routes')

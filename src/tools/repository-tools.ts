@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { RepositoryManager } from '../core/repository-manager.js'
 import { z } from 'zod'
 import { logger } from '../utils/logger.js'
-import { handleToolError } from './tool-utils.js'
+import { handleToolError, READONLY_ANNOTATIONS } from './tool-utils.js'
 
 export function registerRepositoryTools(
   server: McpServer,
@@ -21,25 +21,20 @@ Args:
       inputSchema: z.object({
         response_format: z.enum(['json', 'markdown']).optional().describe('Output format: "markdown" (default) or "json"'),
       }).strict(),
-      annotations: {
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
+      annotations: READONLY_ANNOTATIONS,
     },
-    async ({ response_format }) => {
+    async ({ response_format }, _extra) => {
       logger.debug('Tool list_repositories called', { response_format })
       try {
         const repos = repoManager.list()
         if (repos.length === 0) {
           return {
-            content: [{ type: 'text', text: response_format === 'json' ? '[]' : 'No repositories configured. Add repos to repolens.yaml, or pass paths directly to search tools.' }],
+            content: [{ type: 'text' as const, text: response_format === 'json' ? '[]' : 'No repositories configured. Add repos to repolens.yaml, or pass paths directly to search tools.' }],
           }
         }
 
         if (response_format === 'json') {
-          return { content: [{ type: 'text', text: JSON.stringify(repos, null, 2) }] }
+          return { content: [{ type: 'text' as const, text: JSON.stringify(repos, null, 2) }] }
         }
 
         const lines: string[] = [`${repos.length} repositories:`]
@@ -48,7 +43,7 @@ Args:
           lines.push(`  ${name}: ${r.path} (${r.gitInfo.branch})`)
         }
 
-        return { content: [{ type: 'text', text: lines.join('\n') }] }
+        return { content: [{ type: 'text' as const, text: lines.join('\n') }] }
       }
       catch (error) {
         return handleToolError(error, 'list_repositories')

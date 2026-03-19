@@ -43,7 +43,7 @@ describe('repository tools', () => {
   })
 
   it('should register exactly one tool', () => {
-    expect(mockServer.registerTool).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(mockServer.registerTool)).toHaveBeenCalledTimes(1)
     expect(toolHandlers.has('repolens_list_repositories')).toBe(true)
   })
 

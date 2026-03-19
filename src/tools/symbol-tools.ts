@@ -4,7 +4,7 @@ import type { SymbolSearchEngine } from '../search/symbol-search.js'
 import type { SymbolResult } from '../types/symbols.js'
 import { z } from 'zod'
 import { logger } from '../utils/logger.js'
-import { formatToolResponse, handleToolError, resolveRepositories } from './tool-utils.js'
+import { formatToolResponse, handleToolError, READONLY_ANNOTATIONS, resolveRepositories } from './tool-utils.js'
 
 /**
  * Format symbol results in a token-efficient format
@@ -44,12 +44,6 @@ function formatSymbolResults(results: SymbolResult[], kind: string, pattern: str
 
 const languageEnum = z.enum(['typescript', 'javascript', 'ts', 'js', 'php'])
 
-const symbolAnnotations = {
-  readOnlyHint: true,
-  destructiveHint: false,
-  idempotentHint: true,
-  openWorldHint: false,
-} as const
 
 const symbolOutputSchema = {
   count: z.number().int().describe('Number of results returned'),
@@ -107,9 +101,9 @@ Examples:
   - Find exported functions in backend: repoFilter="backend", exportedOnly=true`,
       inputSchema: symbolInputSchema('Function name pattern (supports wildcards like \'handle*\')'),
       outputSchema: symbolOutputSchema,
-      annotations: symbolAnnotations,
+      annotations: READONLY_ANNOTATIONS,
     },
-    async ({ name, paths, repoFilter, language, exportedOnly, maxResults, response_format }) => {
+    async ({ name, paths, repoFilter, language, exportedOnly, maxResults, response_format }, _extra) => {
       logger.debug('Tool find_functions called', { name, paths, repoFilter, language, response_format })
       try {
         const resolved = resolveRepositories(repoManager, repoFilter, paths)
@@ -120,7 +114,7 @@ Examples:
           resolved.repositories,
         )
 
-        return formatToolResponse(response_format, results, () => formatSymbolResults(results, 'function', name))
+        return formatToolResponse(response_format, results, data => formatSymbolResults(data as SymbolResult[], 'function', name))
       }
       catch (error) {
         return handleToolError(error, 'find_functions')
@@ -151,9 +145,9 @@ Examples:
   - Find controllers in backend: repoFilter="backend", name="*Controller"`,
       inputSchema: symbolInputSchema('Class name pattern'),
       outputSchema: symbolOutputSchema,
-      annotations: symbolAnnotations,
+      annotations: READONLY_ANNOTATIONS,
     },
-    async ({ name, paths, repoFilter, language, exportedOnly, maxResults, response_format }) => {
+    async ({ name, paths, repoFilter, language, exportedOnly, maxResults, response_format }, _extra) => {
       logger.debug('Tool find_classes called', { name, paths, repoFilter, language, response_format })
       try {
         const resolved = resolveRepositories(repoManager, repoFilter, paths)
@@ -164,7 +158,7 @@ Examples:
           resolved.repositories,
         )
 
-        return formatToolResponse(response_format, results, () => formatSymbolResults(results, 'class', name))
+        return formatToolResponse(response_format, results, data => formatSymbolResults(data as SymbolResult[], 'class', name))
       }
       catch (error) {
         return handleToolError(error, 'find_classes')
@@ -195,9 +189,9 @@ Examples:
   - Find interfaces with prefix: name="I*", exportedOnly=true`,
       inputSchema: symbolInputSchema('Type name pattern'),
       outputSchema: symbolOutputSchema,
-      annotations: symbolAnnotations,
+      annotations: READONLY_ANNOTATIONS,
     },
-    async ({ name, paths, repoFilter, language, exportedOnly, maxResults, response_format }) => {
+    async ({ name, paths, repoFilter, language, exportedOnly, maxResults, response_format }, _extra) => {
       logger.debug('Tool find_types called', { name, paths, repoFilter, language, response_format })
       try {
         const resolved = resolveRepositories(repoManager, repoFilter, paths)
@@ -208,7 +202,7 @@ Examples:
           resolved.repositories,
         )
 
-        return formatToolResponse(response_format, results, () => formatSymbolResults(results, 'type', name))
+        return formatToolResponse(response_format, results, data => formatSymbolResults(data as SymbolResult[], 'type', name))
       }
       catch (error) {
         return handleToolError(error, 'find_types')

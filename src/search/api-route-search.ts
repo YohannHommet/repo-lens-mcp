@@ -6,7 +6,7 @@ import { readFile } from 'node:fs/promises'
 import { parse } from '@ast-grep/napi'
 import fg from 'fast-glob'
 import pLimit from 'p-limit'
-import { getLanguageFromExtension, SupportedLanguage } from '../constants.js'
+import { FILE_CONCURRENCY, getLanguageFromExtension, SupportedLanguage } from '../constants.js'
 import { logger } from '../utils/logger.js'
 import { getRelativePath } from '../utils/path-utils.js'
 
@@ -20,7 +20,7 @@ const API_ROUTE_IGNORE_PATTERNS = [
   '**/*.min.js',
 ]
 
-const FILE_CONCURRENCY = 8
+const LARAVEL_ROUTE_METHODS = new Set(['get', 'post', 'put', 'delete', 'patch', 'any', 'match', 'resource', 'apiResource'])
 
 export class APIRouteSearchEngine {
   /**
@@ -179,7 +179,6 @@ export class APIRouteSearchEngine {
     const routes: APIRoute[] = []
 
     // Match all Route::method() calls using kind-based rules
-    const ROUTE_METHODS = new Set(['get', 'post', 'put', 'delete', 'patch', 'any', 'match', 'resource', 'apiResource'])
 
     const matches = root.findAll({
       rule: {
@@ -202,7 +201,7 @@ export class APIRouteSearchEngine {
 
         // Extract method from Route::method(...)
         const methodMatch = text.match(/Route::(\w+)/)
-        if (!methodMatch || !ROUTE_METHODS.has(methodMatch[1])) {
+        if (!methodMatch || !LARAVEL_ROUTE_METHODS.has(methodMatch[1])) {
           continue
         }
         const method = methodMatch[1].toUpperCase()

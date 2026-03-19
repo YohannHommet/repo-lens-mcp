@@ -14,8 +14,6 @@ import { RepositoryManager } from '../src/core/repository-manager.js'
 import { APIRouteSearchEngine } from '../src/search/api-route-search.js'
 import { SymbolSearchEngine } from '../src/search/symbol-search.js'
 
-const CONFIG_DIR = '/tmp/repo-lens-benchmark'
-
 interface BenchmarkResult {
   name: string
   duration: number
@@ -91,25 +89,20 @@ async function main() {
   console.log(`Files: ${fileCounts.total} total (${fileCounts.ts} TS, ${fileCounts.js} JS)`)
   console.log()
 
-  // Initialize
-  const repoManager = new RepositoryManager(CONFIG_DIR)
+  // Initialize using ad-hoc repository (no config file needed)
+  const mockLoader = { load: async () => [] } as any
+  const repoManager = new RepositoryManager(mockLoader)
+  await repoManager.load()
   const symbolSearch = new SymbolSearchEngine()
   const apiRouteSearch = new APIRouteSearchEngine()
 
-  // Benchmark: Repository Registration
-  console.log('─── Repository Registration ───')
-  const regResult = await benchmark('register_repository', async () => {
-    // Unregister first if exists
-    try {
-      await repoManager.unregister(resolvedPath)
-    }
-    catch { /* ignore */ }
-    return repoManager.register(resolvedPath, { alias: 'benchmark-repo' })
-  }, 1)
-  console.log(`  Registration: ${formatMs(regResult.avgDuration)}`)
+  // Create ad-hoc repository for benchmarking
+  console.log('─── Repository Setup ───')
+  const regStart = performance.now()
+  const repos = repoManager.createAdHocRepositories([resolvedPath])
+  const regEnd = performance.now()
+  console.log(`  Setup: ${formatMs(regEnd - regStart)}`)
   console.log()
-
-  const repos = repoManager.list()
 
   // Benchmark: Symbol Search
   console.log('─── Symbol Search ───')
@@ -157,12 +150,6 @@ async function main() {
   console.log(`  Total symbol search time: ${formatMs(totalSearchTime)}`)
   console.log(`  Avg per search type: ${formatMs(totalSearchTime / 3)}`)
   console.log()
-
-  // Cleanup
-  try {
-    await repoManager.unregister(resolvedPath)
-  }
-  catch { /* ignore */ }
 
   console.log('═══════════════════════════════════════════════════════════')
   console.log('  Benchmark complete!')
