@@ -11,20 +11,34 @@ interface ToolResponse {
 }
 
 /**
- * Resolve repositories from a comma-separated filter string.
- * Returns either the repositories or an error response.
+ * Resolve repositories from registered repos (repoFilter) and/or ad-hoc paths.
+ * Merges both sources with deduplication by path.
  */
 export function resolveRepositories(
   repoManager: RepositoryManager,
   repoFilter: string | undefined,
+  paths: string | undefined,
 ): { repositories: Repository[] } | { error: ToolResponse } {
-  const repos = splitCommaSeparated(repoFilter)
-  const repositories = repoManager.resolveIdentifiers(repos)
+  const filterIds = splitCommaSeparated(repoFilter)
+  const adHocPaths = splitCommaSeparated(paths)
+
+  const registeredRepos = repoManager.resolveIdentifiers(filterIds)
+  const adHocRepos = adHocPaths ? repoManager.createAdHocRepositories(adHocPaths) : []
+
+  // Merge and deduplicate by path
+  const seen = new Set<string>()
+  const repositories: Repository[] = []
+  for (const repo of [...registeredRepos, ...adHocRepos]) {
+    if (!seen.has(repo.path)) {
+      seen.add(repo.path)
+      repositories.push(repo)
+    }
+  }
 
   if (repositories.length === 0) {
     return {
       error: {
-        content: [{ type: 'text', text: 'No repositories found. Use repolens_register_repository to add repositories, or check repoFilter value matches registered repos.' }],
+        content: [{ type: 'text', text: 'No repositories found. Configure repos in repolens.yaml, or pass paths directly to search tools.' }],
         isError: true,
       },
     }

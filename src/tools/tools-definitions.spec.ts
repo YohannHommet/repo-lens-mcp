@@ -6,11 +6,10 @@ import { registerSymbolTools } from './symbol-tools.js'
 
 // Mock dependencies
 const mockRepoManager = {
-  register: vi.fn(),
-  unregister: vi.fn(),
   list: vi.fn(),
   get: vi.fn(),
   resolveIdentifiers: vi.fn(),
+  createAdHocRepositories: vi.fn(),
 }
 
 // Mock McpServer
@@ -19,35 +18,28 @@ const mockServer = {
 } as unknown as McpServer
 
 describe('tool definitions', () => {
-  it('should register repository tools with comma-separated string parameters', () => {
-    registerRepositoryTools(mockServer, mockRepoManager as any)
-
-    // Verify register_repository registration
-    const regCall = (mockServer.registerTool as any).mock.calls.find((c: any) => c[0] === 'repolens_register_repository')
-    expect(regCall).toBeDefined()
-    // inputSchema is now a z.object(), so check .shape for field schemas
-    expect(regCall[1].inputSchema.shape.tags).toBeDefined()
-    expect(regCall[1].inputSchema.shape.force).toBeDefined()
-
-    // Verify repositories tool registration
-    const reposCall = (mockServer.registerTool as any).mock.calls.find((c: any) => c[0] === 'repolens_repositories')
-    expect(reposCall).toBeDefined()
-    expect(reposCall[1].inputSchema.shape.identifier).toBeDefined()
-    expect(reposCall[1].inputSchema.shape.remove).toBeDefined()
-    expect(reposCall[1].inputSchema.shape.tagFilter).toBeDefined()
-  })
-
-  it('should register exactly 2 repository tools', () => {
+  it('should register exactly 1 repository tool', () => {
     const toolServer = {
       registerTool: vi.fn(),
     } as unknown as McpServer
 
     registerRepositoryTools(toolServer, mockRepoManager as any)
 
-    expect(toolServer.registerTool).toHaveBeenCalledTimes(2)
+    expect(toolServer.registerTool).toHaveBeenCalledTimes(1)
     const toolNames = (toolServer.registerTool as any).mock.calls.map((c: any) => c[0])
-    expect(toolNames).toContain('repolens_register_repository')
-    expect(toolNames).toContain('repolens_repositories')
+    expect(toolNames).toContain('repolens_list_repositories')
+  })
+
+  it('should register list_repositories tool with response_format parameter only', () => {
+    registerRepositoryTools(mockServer, mockRepoManager as any)
+
+    const reposCall = (mockServer.registerTool as any).mock.calls.find((c: any) => c[0] === 'repolens_list_repositories')
+    expect(reposCall).toBeDefined()
+    expect(reposCall[1].inputSchema.shape.response_format).toBeDefined()
+    // No add/alias/remove params
+    expect(reposCall[1].inputSchema.shape.add).toBeUndefined()
+    expect(reposCall[1].inputSchema.shape.alias).toBeUndefined()
+    expect(reposCall[1].inputSchema.shape.remove).toBeUndefined()
   })
 })
 
@@ -87,6 +79,17 @@ describe('api tool definitions', () => {
     expect(inner._def.type).toBe('enum')
     expect(inner._def.entries).toBeDefined()
   })
+
+  it('should have paths parameter on api routes tool', () => {
+    const toolServer = {
+      registerTool: vi.fn(),
+    } as unknown as McpServer
+
+    registerApiTools(toolServer, mockRepoManager as any, {} as any)
+
+    const apiCall = (toolServer.registerTool as any).mock.calls.find((c: any) => c[0] === 'repolens_find_api_routes')
+    expect(apiCall[1].inputSchema.shape.paths).toBeDefined()
+  })
 })
 
 describe('symbol tool definitions', () => {
@@ -124,6 +127,20 @@ describe('symbol tool definitions', () => {
       const inner = languageSchema._def.innerType || languageSchema
       expect(inner._def.entries, `${toolName} should have entries`).toBeDefined()
       expect(inner._def.entries, `${toolName} should include php`).toHaveProperty('php')
+    }
+  })
+
+  it('should have paths parameter on all symbol tools', () => {
+    const toolServer = {
+      registerTool: vi.fn(),
+    } as unknown as McpServer
+
+    registerSymbolTools(toolServer, mockRepoManager as any, {} as any)
+
+    const toolNames = ['repolens_find_functions', 'repolens_find_classes', 'repolens_find_types']
+    for (const toolName of toolNames) {
+      const call = (toolServer.registerTool as any).mock.calls.find((c: any) => c[0] === toolName)
+      expect(call[1].inputSchema.shape.paths, `${toolName} should have paths field`).toBeDefined()
     }
   })
 })

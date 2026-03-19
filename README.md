@@ -20,7 +20,7 @@
 
 **The problem:** You're working in your frontend repo and need to find a backend API endpoint. Or you're debugging and need to find where a function is defined across your monorepo. With Claude Code, you can search the current repository, but what about your other local projects?
 
-**The solution:** Repo Lens lets you register multiple local repositories and search across all of them simultaneously using AST-based structural search. Find the exact function signature, class definition, or API route you need without leaving your current context.
+**The solution:** Repo Lens lets you declare your repositories once in a YAML config file — or search any directory ad-hoc — and search across all of them simultaneously using AST-based structural search. Find the exact function signature, class definition, or API route you need without leaving your current context.
 
 ### Use Cases
 
@@ -50,12 +50,20 @@ Unlike grep-style text search, Repo Lens uses **[ast-grep](https://ast-grep.gith
 - **Export awareness:** Find only exported functions, or include private ones
 - **Signature extraction:** Get full function signatures, not just names
 
+### Zero-Friction Search
+
+Search any directory instantly with the `paths` parameter — no configuration required:
+
+- Pass directory paths directly to any search tool
+- Declare persistent repos in `repolens.yaml` with aliases for repeated use
+- Mix both: registered repos + ad-hoc paths in the same query
+
 ### Multi-Repository Search
 
-Register any number of local git repositories and search them all at once:
+Declare your repositories once and search them all at once:
 
-- Instant registration (< 1 second per repo)
-- Filter by repository, tags, or search all
+- Static YAML config — declare once, search always
+- Filter by repository alias or search all
 - Results include repository context
 
 ### API Route Discovery
@@ -75,7 +83,7 @@ Add this to your `claude_desktop_config.json` (or VS Code MCP settings):
   "mcpServers": {
     "repo-lens": {
       "command": "npx",
-      "args": ["-y", "repo-lens-mcp"]
+      "args": ["-y", "repo-lens-mcp", "--config", "/home/user/repolens.yaml"]
     }
   }
 }
@@ -95,22 +103,53 @@ pnpm dev
 
 ---
 
+## Configuration
+
+### Config File (`repolens.yaml`)
+
+Create a YAML config file declaring your repositories:
+
+```yaml
+# repolens.yaml
+repositories:
+  - path: ~/projects/backend-api
+    alias: backend
+  - path: ~/projects/frontend-app
+    alias: frontend
+  - path: ~/projects/shared-lib
+```
+
+`~` is expanded to your home directory automatically.
+
+### Config Path Resolution
+
+1. **`--config <path>`** CLI argument (explicit — fails if file not found)
+2. **Default:** `~/.config/repo-lens-mcp/repolens.yaml` (graceful — returns empty if not found, ad-hoc paths still work)
+
+### Environment Variables
+
+| Variable | Default | Description |
+|:---|:---|:---|
+| `MCP_LOG_LEVEL` | `info` | Log level: `debug`, `info`, `warn`, `error` |
+
+Example:
+```json
+{
+  "env": {
+    "MCP_LOG_LEVEL": "debug"
+  }
+}
+```
+
+---
+
 ## Capabilities
 
-### Repository Management (2 tools)
-
-Manage which repositories are available for cross-repo search:
+### Repository Listing (1 tool)
 
 | Tool | Description |
 |:---|:---|
-| `repolens_register_repository` | Add or update a git repository (`force: true` to update existing) |
-| `repolens_repositories` | List, view, or remove repositories |
-
-**`repolens_repositories` usage patterns:**
-- `repolens_repositories()` → List all repos
-- `repolens_repositories({ identifier: 'my-api' })` → Get details of one repo
-- `repolens_repositories({ identifier: 'my-api', remove: true })` → Remove that repo
-- `repolens_repositories({ tags: ['frontend'] })` → List repos filtered by tags
+| `repolens_list_repositories` | List all configured repositories (read-only) |
 
 ### Symbol Search (3 tools)
 
@@ -122,6 +161,10 @@ AST-based structural search powered by ast-grep. Supports **JavaScript/TypeScrip
 | `repolens_find_classes` | Find class definitions (also finds PHP traits) |
 | `repolens_find_types` | Find interfaces and type aliases (PHP: interfaces only) |
 
+All search tools accept:
+- `paths` — Ad-hoc directory paths to search (comma-separated, no registration needed)
+- `repoFilter` — Filter registered repositories by alias
+
 ### API Route Discovery (1 tool)
 
 | Tool | Description |
@@ -132,28 +175,28 @@ AST-based structural search powered by ast-grep. Supports **JavaScript/TypeScrip
 
 ## Usage Examples
 
-### 1. Register Your Projects
+### 1. Search Any Directory (No Configuration)
 
-> "Register the backend at /path/to/backend-api"
+> "Find all functions starting with 'handle' in my backend"
 
 ```
-repolens_register_repository(path: "/path/to/backend-api", alias: "backend")
+repolens_find_functions(paths: "/home/user/projects/backend", name: "handle*")
 ```
 
-### 2. Find an API Endpoint
+### 2. List Configured Repos
+
+> "What repos are available?"
+
+```
+repolens_list_repositories()
+```
+
+### 3. Find an API Endpoint
 
 > "Find the Express route that handles POST requests to /login"
 
 ```
-repolens_find_api_routes(framework: "express", method: "POST", pathPattern: "/login")
-```
-
-### 3. Search Functions Across Repos
-
-> "Find all functions starting with 'handle' across all my registered repos"
-
-```
-repolens_find_functions(name: "handle*")
+repolens_find_api_routes(repoFilter: "backend", method: "POST", pathPattern: "/login")
 ```
 
 ### 4. Find a Specific Class
@@ -162,26 +205,6 @@ repolens_find_functions(name: "handle*")
 
 ```
 repolens_find_classes(name: "UserService")
-```
-
----
-
-## Configuration
-
-Minimal configuration via environment variables:
-
-| Variable | Default | Description |
-|:---|:---|:---|
-| `MCP_LOG_LEVEL` | `info` | Log level: `debug`, `info`, `warn`, `error` |
-| `MCP_REPO_SEARCH_CONFIG_DIR` | `~/.config/mcp-repo-search` | Config directory for repository data |
-
-Example:
-```json
-{
-  "env": {
-    "MCP_LOG_LEVEL": "debug"
-  }
-}
 ```
 
 ---

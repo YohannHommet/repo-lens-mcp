@@ -79,10 +79,10 @@
     "@ast-grep/lang-php": "^0.0.6",
     "@ast-grep/napi": "^0.40.5",
     "@modelcontextprotocol/sdk": "^1.27.1",
-    "async-mutex": "^0.5.0",
     "fast-glob": "^3.3.3",
     "p-limit": "^7.3.0",
     "simple-git": "^3.33.0",
+    "yaml": "^2.7.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

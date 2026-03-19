@@ -1,127 +1,41 @@
-import type { RegisterResult, Repository, RepositoryFilter } from '../types/repository.js'
+import type { Repository } from '../types/repository.js'
 
-import { randomUUID } from 'node:crypto'
 import { logger } from '../utils/logger.js'
-import { isSubPath, normalizePath } from '../utils/path-utils.js'
-import { ConfigStore } from './config-store.js'
+import { normalizePath } from '../utils/path-utils.js'
+import { ConfigLoader } from './config-loader.js'
 import { RepositoryScanner } from './repository-scanner.js'
-
-export interface RegisterOptions {
-  alias?: string
-  tags?: string[]
-  force?: boolean
-}
 
 export class RepositoryManager {
   private repositories: Map<string, Repository> = new Map()
-  private store: ConfigStore
+  private loader: ConfigLoader
   private scanner: RepositoryScanner
 
-  constructor(configDir: string) {
-    this.store = new ConfigStore(configDir)
+  constructor(loader: ConfigLoader) {
+    this.loader = loader
     this.scanner = new RepositoryScanner()
   }
 
   async load(): Promise<void> {
-    this.repositories = await this.store.load()
-  }
+    const entries = await this.loader.load()
+    const results = await Promise.all(
+      entries.map(entry =>
+        this.scanRepository(entry.path, entry.alias).catch((error) => {
+          logger.warn('Skipping invalid repository from config', { path: entry.path, error })
+          return null
+        }),
+      ),
+    )
 
-  async register(path: string, options?: RegisterOptions): Promise<RegisterResult> {
-    const normalizedPath = await this.scanner.validatePath(path)
-
-    // Check if already registered
-    let existingRepo: Repository | null = null
-    for (const repo of this.repositories.values()) {
-      if (repo.path === normalizedPath) {
-        existingRepo = repo
-        break
+    for (const repo of results) {
+      if (repo) {
+        this.repositories.set(repo.id, repo)
       }
     }
-
-    if (existingRepo) {
-      if (options?.force) {
-        // Update existing repo
-        const updated = await this.update(existingRepo, options)
-        return { ...updated, action: 'updated' }
-      }
-      throw new Error(`Repository already registered: ${path}`)
-    }
-
-    // Check alias uniqueness for new registrations
-    if (options?.alias) {
-      for (const repo of this.repositories.values()) {
-        if (repo.alias === options.alias) {
-          throw new Error(`Alias already in use: ${options.alias}`)
-        }
-      }
-    }
-
-    const { gitInfo } = await this.scanner.scan(normalizedPath)
-
-    const repository: Repository = {
-      id: randomUUID(),
-      path: normalizedPath,
-      alias: options?.alias,
-      tags: options?.tags || [],
-      gitInfo,
-      registeredAt: new Date(),
-    }
-
-    this.repositories.set(repository.id, repository)
-    await this.store.save(this.repositories)
-
-    logger.info('Repository registered', { id: repository.id, path: normalizedPath })
-
-    return { ...repository, action: 'registered' }
+    logger.info('Repositories loaded', { count: this.repositories.size })
   }
 
-  private async update(repo: Repository, options: RegisterOptions): Promise<Repository> {
-    // Check alias uniqueness if changing
-    if (options.alias && options.alias !== repo.alias) {
-      for (const r of this.repositories.values()) {
-        if (r.alias === options.alias && r.id !== repo.id) {
-          throw new Error(`Alias already in use: ${options.alias}`)
-        }
-      }
-      repo.alias = options.alias
-    }
-
-    // Update tags if provided
-    if (options.tags !== undefined) {
-      repo.tags = options.tags
-    }
-
-    // Refresh git info
-    const { gitInfo } = await this.scanner.scan(repo.path)
-    repo.gitInfo = gitInfo
-
-    await this.store.save(this.repositories)
-
-    logger.info('Repository updated', { id: repo.id, path: repo.path })
-
-    return repo
-  }
-
-  async unregister(identifier: string): Promise<void> {
-    const repo = this.resolveIdentifier(identifier)
-    if (!repo) {
-      throw new Error(`Repository not found: ${identifier}`)
-    }
-
-    this.repositories.delete(repo.id)
-    await this.store.save(this.repositories)
-
-    logger.info('Repository unregistered', { id: repo.id })
-  }
-
-  list(filter?: RepositoryFilter): Repository[] {
-    let repos = Array.from(this.repositories.values())
-
-    if (filter?.tags && filter.tags.length > 0) {
-      repos = repos.filter(repo => filter.tags!.some(tag => repo.tags.includes(tag)))
-    }
-
-    return repos
+  list(): Repository[] {
+    return Array.from(this.repositories.values())
   }
 
   get(identifier: string): Repository | null {
@@ -129,22 +43,13 @@ export class RepositoryManager {
   }
 
   resolveIdentifier(identifier: string): Repository | null {
-    // Try by ID
-    if (this.repositories.has(identifier)) {
-      return this.repositories.get(identifier)!
+    const normalizedPath = normalizePath(identifier)
+    if (this.repositories.has(normalizedPath)) {
+      return this.repositories.get(normalizedPath)!
     }
 
-    // Try by alias
     for (const repo of this.repositories.values()) {
       if (repo.alias === identifier) {
-        return repo
-      }
-    }
-
-    // Try by path
-    const normalizedPath = normalizePath(identifier)
-    for (const repo of this.repositories.values()) {
-      if (repo.path === normalizedPath) {
         return repo
       }
     }
@@ -154,7 +59,7 @@ export class RepositoryManager {
 
   resolveIdentifiers(identifiers?: string[]): Repository[] {
     if (!identifiers || identifiers.length === 0) {
-      return Array.from(this.repositories.values())
+      return this.list()
     }
 
     const repos: Repository[] = []
@@ -167,16 +72,29 @@ export class RepositoryManager {
     return repos
   }
 
-  resolvePath(filePath: string): { repo: Repository, relativePath: string } | null {
-    const normalizedPath = normalizePath(filePath)
-
-    for (const repo of this.repositories.values()) {
-      if (isSubPath(repo.path, normalizedPath)) {
-        const relativePath = normalizedPath.slice(repo.path.length + 1)
-        return { repo, relativePath }
+  createAdHocRepositories(paths: string[]): Repository[] {
+    return paths.map((p) => {
+      const normalized = normalizePath(p)
+      const dirName = normalized.split('/').pop() || normalized
+      return {
+        id: normalized,
+        path: normalized,
+        alias: dirName,
+        gitInfo: { branch: 'unknown', lastCommit: 'unknown' },
+        registeredAt: new Date(),
       }
-    }
+    })
+  }
 
-    return null
+  private async scanRepository(path: string, alias?: string): Promise<Repository> {
+    const normalizedPath = await this.scanner.validatePath(path)
+    const { gitInfo } = await this.scanner.scan(normalizedPath)
+    return {
+      id: normalizedPath,
+      path: normalizedPath,
+      alias,
+      gitInfo,
+      registeredAt: new Date(),
+    }
   }
 }

@@ -7,15 +7,15 @@ const mockRepo = {
   id: 'repo-123',
   path: '/projects/my-app',
   alias: 'my-app',
-  tags: ['frontend', 'typescript'],
   gitInfo: { branch: 'main', lastCommit: 'abc123' },
   registeredAt: new Date('2026-01-01'),
-  action: 'registered' as const,
 }
 
-const mockUpdatedRepo = {
-  ...mockRepo,
-  action: 'updated' as const,
+const mockRepoNoAlias = {
+  id: 'repo-456',
+  path: '/projects/backend-service',
+  gitInfo: { branch: 'develop', lastCommit: 'def456' },
+  registeredAt: new Date('2026-01-02'),
 }
 
 // Capture registered tool handlers
@@ -36,259 +36,94 @@ describe('repository tools', () => {
     vi.clearAllMocks()
 
     mockRepoManager = {
-      register: vi.fn(),
-      unregister: vi.fn(),
       list: vi.fn(),
-      get: vi.fn(),
     }
 
     registerRepositoryTools(mockServer, mockRepoManager)
   })
 
-  describe('register_repository', () => {
-    it('should register a new repository successfully', async () => {
-      // Arrange
-      mockRepoManager.register.mockResolvedValue(mockRepo)
-      const handler = toolHandlers.get('repolens_register_repository')!
-
-      // Act
-      const result = await handler({
-        path: '/projects/my-app',
-        alias: 'my-app',
-        tags: 'frontend,typescript',
-      })
-
-      // Assert
-      expect(mockRepoManager.register).toHaveBeenCalledWith(
-        '/projects/my-app',
-        { alias: 'my-app', tags: ['frontend', 'typescript'], force: undefined },
-      )
-      expect(result.isError).toBeUndefined()
-      expect(result.content[0].text).toContain('Registered')
-      expect(result.content[0].text).toContain('my-app')
-      expect(result.content[0].text).toContain('/projects/my-app')
-    })
-
-    it('should update existing repository with force=true', async () => {
-      // Arrange
-      mockRepoManager.register.mockResolvedValue(mockUpdatedRepo)
-      const handler = toolHandlers.get('repolens_register_repository')!
-
-      // Act
-      const result = await handler({
-        path: '/projects/my-app',
-        force: true,
-      })
-
-      // Assert
-      expect(mockRepoManager.register).toHaveBeenCalledWith(
-        '/projects/my-app',
-        { alias: undefined, tags: [], force: true },
-      )
-      expect(result.content[0].text).toContain('Updated')
-    })
-
-    it('should handle registration errors', async () => {
-      // Arrange
-      mockRepoManager.register.mockRejectedValue(new Error('Repository already registered'))
-      const handler = toolHandlers.get('repolens_register_repository')!
-
-      // Act
-      const result = await handler({ path: '/projects/my-app' })
-
-      // Assert
-      expect(result.isError).toBe(true)
-      expect(result.content[0].text).toContain('Repository already registered')
-    })
-
-    it('should handle undefined tags gracefully', async () => {
-      // Arrange
-      mockRepoManager.register.mockResolvedValue(mockRepo)
-      const handler = toolHandlers.get('repolens_register_repository')!
-
-      // Act
-      await handler({ path: '/projects/my-app' })
-
-      // Assert
-      expect(mockRepoManager.register).toHaveBeenCalledWith(
-        '/projects/my-app',
-        { alias: undefined, tags: [], force: undefined },
-      )
-    })
+  it('should register exactly one tool', () => {
+    expect(mockServer.registerTool).toHaveBeenCalledTimes(1)
+    expect(toolHandlers.has('repolens_list_repositories')).toBe(true)
   })
 
-  describe('repositories - list mode', () => {
+  describe('list mode', () => {
     it('should list all repositories', async () => {
-      // Arrange
       mockRepoManager.list.mockReturnValue([mockRepo])
-      const handler = toolHandlers.get('repolens_repositories')!
+      const handler = toolHandlers.get('repolens_list_repositories')!
 
-      // Act
       const result = await handler({})
 
-      // Assert
-      expect(mockRepoManager.list).toHaveBeenCalledWith({ tags: undefined })
+      expect(mockRepoManager.list).toHaveBeenCalledWith()
       expect(result.content[0].text).toContain('1 repositories:')
       expect(result.content[0].text).toContain('my-app')
+      expect(result.content[0].text).toContain('/projects/my-app')
+      expect(result.content[0].text).toContain('main')
     })
 
-    it('should filter repositories by tags', async () => {
-      // Arrange
-      mockRepoManager.list.mockReturnValue([mockRepo])
-      const handler = toolHandlers.get('repolens_repositories')!
-
-      // Act
-      const result = await handler({ tagFilter: 'frontend,typescript' })
-
-      // Assert
-      expect(mockRepoManager.list).toHaveBeenCalledWith({ tags: ['frontend', 'typescript'] })
-      expect(result.content[0].text).toContain('my-app')
-    })
-
-    it('should handle empty repository list', async () => {
-      // Arrange
+    it('should handle empty list', async () => {
       mockRepoManager.list.mockReturnValue([])
-      const handler = toolHandlers.get('repolens_repositories')!
+      const handler = toolHandlers.get('repolens_list_repositories')!
 
-      // Act
       const result = await handler({})
 
-      // Assert
-      expect(result.content[0].text).toBe('No repositories registered.')
+      expect(result.content[0].text).toContain('No repositories configured')
     })
 
-    it('should display repository without alias using id', async () => {
-      // Arrange
-      const repoWithoutAlias = { ...mockRepo, alias: undefined }
-      mockRepoManager.list.mockReturnValue([repoWithoutAlias])
-      const handler = toolHandlers.get('repolens_repositories')!
+    it('should display alias in listing', async () => {
+      mockRepoManager.list.mockReturnValue([mockRepo])
+      const handler = toolHandlers.get('repolens_list_repositories')!
 
-      // Act
       const result = await handler({})
 
-      // Assert
-      expect(result.content[0].text).toContain('repo-123')
+      expect(result.content[0].text).toContain('my-app: /projects/my-app (main)')
     })
 
-    it('should display repository without tags', async () => {
-      // Arrange
-      const repoWithoutTags = { ...mockRepo, tags: [] }
-      mockRepoManager.list.mockReturnValue([repoWithoutTags])
-      const handler = toolHandlers.get('repolens_repositories')!
+    it('should display dir name when no alias', async () => {
+      mockRepoManager.list.mockReturnValue([mockRepoNoAlias])
+      const handler = toolHandlers.get('repolens_list_repositories')!
 
-      // Act
       const result = await handler({})
 
-      // Assert
-      // New format uses [tags] suffix, which should be absent for empty tags
-      expect(result.content[0].text).toContain('my-app')
-      expect(result.content[0].text).not.toContain('[frontend')
+      expect(result.content[0].text).toContain('backend-service: /projects/backend-service (develop)')
     })
   })
 
-  describe('repositories - get mode', () => {
-    it('should get repository by identifier', async () => {
-      // Arrange
-      mockRepoManager.get.mockReturnValue(mockRepo)
-      const handler = toolHandlers.get('repolens_repositories')!
+  describe('response_format', () => {
+    it('should return JSON when response_format=json', async () => {
+      mockRepoManager.list.mockReturnValue([mockRepo, mockRepoNoAlias])
+      const handler = toolHandlers.get('repolens_list_repositories')!
 
-      // Act
-      const result = await handler({ identifier: 'my-app' })
+      const result = await handler({ response_format: 'json' })
 
-      // Assert
-      expect(mockRepoManager.get).toHaveBeenCalledWith('my-app')
       const content = JSON.parse(result.content[0].text)
-      expect(content.id).toBe('repo-123')
-      expect(content.alias).toBe('my-app')
+      expect(Array.isArray(content)).toBe(true)
+      expect(content).toHaveLength(2)
+      expect(content[0].id).toBe('repo-123')
+      expect(content[1].id).toBe('repo-456')
     })
 
-    it('should return error when repository not found', async () => {
-      // Arrange
-      mockRepoManager.get.mockReturnValue(null)
-      const handler = toolHandlers.get('repolens_repositories')!
+    it('should return JSON empty array when response_format=json and no repos', async () => {
+      mockRepoManager.list.mockReturnValue([])
+      const handler = toolHandlers.get('repolens_list_repositories')!
 
-      // Act
-      const result = await handler({ identifier: 'nonexistent' })
+      const result = await handler({ response_format: 'json' })
 
-      // Assert
-      expect(result.isError).toBe(true)
-      expect(result.content[0].text).toContain('Repository not found')
-      expect(result.content[0].text).toContain('nonexistent')
-    })
-  })
-
-  describe('repositories - remove mode', () => {
-    it('should remove repository by identifier', async () => {
-      // Arrange
-      mockRepoManager.unregister.mockResolvedValue(undefined)
-      const handler = toolHandlers.get('repolens_repositories')!
-
-      // Act
-      const result = await handler({ identifier: 'my-app', remove: true })
-
-      // Assert
-      expect(mockRepoManager.unregister).toHaveBeenCalledWith('my-app')
-      const content = JSON.parse(result.content[0].text)
-      expect(content.success).toBe(true)
-      expect(content.removed).toBe('my-app')
-    })
-
-    it('should return error when remove=true but no identifier', async () => {
-      // Arrange
-      const handler = toolHandlers.get('repolens_repositories')!
-
-      // Act
-      const result = await handler({ remove: true })
-
-      // Assert
-      expect(result.isError).toBe(true)
-      expect(result.content[0].text).toContain('requires an "identifier"')
-      expect(mockRepoManager.unregister).not.toHaveBeenCalled()
-    })
-
-    it('should handle unregister errors', async () => {
-      // Arrange
-      mockRepoManager.unregister.mockRejectedValue(new Error('Repository not found: xyz'))
-      const handler = toolHandlers.get('repolens_repositories')!
-
-      // Act
-      const result = await handler({ identifier: 'xyz', remove: true })
-
-      // Assert
-      expect(result.isError).toBe(true)
-      expect(result.content[0].text).toContain('Repository not found: xyz')
+      expect(result.content[0].text).toBe('[]')
     })
   })
 
   describe('error handling', () => {
-    it('should handle list errors', async () => {
-      // Arrange
+    it('should handle unexpected errors gracefully', async () => {
       mockRepoManager.list.mockImplementation(() => {
         throw new Error('Database error')
       })
-      const handler = toolHandlers.get('repolens_repositories')!
+      const handler = toolHandlers.get('repolens_list_repositories')!
 
-      // Act
       const result = await handler({})
 
-      // Assert
       expect(result.isError).toBe(true)
-      expect(result.content[0].text).toContain('Database error')
-    })
-
-    it('should handle get errors', async () => {
-      // Arrange
-      mockRepoManager.get.mockImplementation(() => {
-        throw new Error('Connection failed')
-      })
-      const handler = toolHandlers.get('repolens_repositories')!
-
-      // Act
-      const result = await handler({ identifier: 'my-app' })
-
-      // Assert
-      expect(result.isError).toBe(true)
-      expect(result.content[0].text).toContain('Connection failed')
+      expect(result.content[0].text).toContain('Error: Database error')
     })
   })
 })
