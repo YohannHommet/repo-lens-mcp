@@ -2,6 +2,7 @@
   "name": "repo-lens-mcp",
   "type": "module",
   "version": "0.3.0",
+  "packageManager": "pnpm@10.32.1",
   "description": "MCP server for multi-repository AST-based symbol search and API route discovery",
   "author": "Yohann Hommet <yohann.hommet@outlook.fr>",
   "license": "AGPL-3.0-only",
