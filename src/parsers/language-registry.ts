@@ -31,11 +31,6 @@ export function getLangNameFromFile(filePath: string): string | null {
   return EXTENSION_TO_LANG_NAME[ext] || null
 }
 
-export function isSupportedFile(filePath: string): boolean {
-  const ext = extname(filePath).toLowerCase()
-  return ext in EXTENSION_TO_LANG
-}
-
 export function getSupportedExtensions(): string[] {
   return Object.keys(EXTENSION_TO_LANG)
 }

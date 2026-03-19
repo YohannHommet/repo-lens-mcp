@@ -18,7 +18,6 @@ vi.mock('./repository-scanner.js', () => ({
 
 vi.mock('../utils/path-utils.js', () => ({
   normalizePath: (p: string) => p,
-  isSubPath: (parent: string, child: string) => child.startsWith(`${parent}/`),
 }))
 
 // =============================================================================
